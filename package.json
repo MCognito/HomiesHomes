@@ -1,0 +1,21 @@
+{
+  "name": "6003cem-web-api-development",
+  "version": "1.0.0",
+  "description": "This is the repo for the introduction to  Web API Development",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.coventry.ac.uk/pandyam2/6003CEM-Web-API-Development.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "koa": "^2.15.3",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^13.0.1"
+  }
+}
