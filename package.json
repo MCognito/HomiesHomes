@@ -14,9 +14,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "koa": "^2.15.3",
+    "jsonschema": "^1.5.0",
+    "koa": "^2.15.4",
     "koa-bodyparser": "^4.4.1",
     "koa-router": "^13.0.1",
+<<<<<<< HEAD
     "nodemon": "^3.1.9"
+=======
+    "promise-mysql": "^5.2.0"
+>>>>>>> main
   }
 }
