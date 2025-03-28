@@ -1,0 +1,22 @@
+{
+  "name": "homieshomes-backend",
+  "version": "1.0.0",
+  "description": "Backend for HomiesHomes project using Koa, mysql2, JWT, and more",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@koa/cors": "^3.3.0",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.0.0",
+    "jsonschema": "^1.5.0",
+    "jsonwebtoken": "^9.0.0",
+    "koa": "^2.14.1",
+    "koa-body": "^6.0.1",
+    "koa-bodyparser": "^4.3.0",
+    "koa-router": "^10.1.1",
+    "mysql2": "^3.3.0"
+  }
+}

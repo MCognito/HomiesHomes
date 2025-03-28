@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "user": {
+      "$id": "#user",
+      "title": "User Registration",
+      "description": "Data for registering a new user",
+      "type": "object",
+      "properties": {
+        "username": {
+          "description": "Unique username",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 30,
+          "pattern": "^[a-zA-Z0-9_]+$"
+        },
+        "password": {
+          "description": "User password",
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 100
+        },
+        "user_email": {
+          "description": "User email address",
+          "type": "string",
+          "format": "email",
+          "maxLength": 100
+        },
+        "user_phone": {
+          "description": "User phone number",
+          "type": "string",
+          "maxLength": 20,
+          "pattern": "^[0-9+\\-\\s()]*$"
+        },
+        "user_firstName": {
+          "description": "User's first name",
+          "type": "string",
+          "maxLength": 50
+        },
+        "user_lastName": {
+          "description": "User's last name",
+          "type": "string",
+          "maxLength": 50
+        }
+      },
+      "required": ["username", "password", "user_email"],
+      "additionalProperties": false
+    },
+
+    "login": {
+      "$id": "#login",
+      "title": "User Login",
+      "description": "Data for user login",
+      "type": "object",
+      "properties": {
+        "username": {
+          "description": "Username for login",
+          "type": "string"
+        },
+        "password": {
+          "description": "Password for login",
+          "type": "string"
+        }
+      },
+      "required": ["username", "password"],
+      "additionalProperties": false
+    },
+
+    "userResponse": {
+      "$id": "#userResponse",
+      "title": "User Response",
+      "description": "Response for successful user operations",
+      "type": "object",
+      "properties": {
+        "message": {
+          "description": "Success message",
+          "type": "string"
+        },
+        "token": {
+          "description": "JWT token for authentication",
+          "type": "string"
+        },
+        "user": {
+          "description": "User details",
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "description": "User ID",
+              "type": "integer"
+            },
+            "username": {
+              "description": "Username",
+              "type": "string"
+            },
+            "user_levels": {
+              "description": "User permission level",
+              "type": "integer"
+            },
+            "user_level": {
+              "description": "User permission level (alias)",
+              "type": "integer"
+            },
+            "user_firstName": {
+              "description": "User's first name",
+              "type": "string"
+            },
+            "user_lastName": {
+              "description": "User's last name",
+              "type": "string"
+            },
+            "user_email": {
+              "description": "User's email",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+
+    "roleUpdate": {
+      "$id": "#roleUpdate",
+      "title": "User Role Update",
+      "description": "Data for updating a user's role",
+      "type": "object",
+      "properties": {
+        "user_levels": {
+          "description": "New user permission level",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        }
+      },
+      "required": ["user_levels"],
+      "additionalProperties": false
+    }
+  }
+}
