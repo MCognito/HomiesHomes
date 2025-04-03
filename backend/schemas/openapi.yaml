@@ -1,0 +1,1169 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: HomiesHomes Real Estate API
+  description: A RESTful API for HomiesHomes real estate listings platform. This API provides endpoints for managing users, properties, bookings, and favorites.
+  contact:
+    name: Mandeep Pandya
+  license:
+    name: Apache 2.0
+    url: "https://www.apache.org/licenses/LICENSE-2.0.html"
+servers:
+  - url: "https://gammacairo-deltareward-9000.codio-box.uk"
+    description: Codio development server
+tags:
+  - name: Users
+    description: API endpoints for user management and authentication.
+  - name: Properties
+    description: API endpoints for real estate property listings.
+  - name: Bookings
+    description: API endpoints for property viewing bookings.
+  - name: Favourites
+    description: API endpoints for managing user's favorite properties.
+
+# Security schemes
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Bad Request"
+        path:
+          type: string
+          example: "/api/users"
+        timestamp:
+          type: string
+          example: "2023-03-30T12:00:00Z"
+
+paths:
+  /users:
+    post:
+      tags:
+        - Users
+      summary: Register a new user
+      description: Creates a new user account with the provided information.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - user_email
+                - user_firstName
+                - user_lastName
+              properties:
+                username:
+                  type: string
+                  example: john_doe
+                password:
+                  type: string
+                  format: password
+                  example: securePassword123
+                user_email:
+                  type: string
+                  format: email
+                  example: john.doe@example.com
+                user_phone:
+                  type: string
+                  example: "1234567890"
+                user_firstName:
+                  type: string
+                  example: John
+                user_lastName:
+                  type: string
+                  example: Doe
+      responses:
+        "201":
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  username:
+                    type: string
+                    example: john_doe
+                  message:
+                    type: string
+                    example: "User created successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/users/1"
+        "400":
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Returns a list of all users (admin only).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    user_id:
+                      type: integer
+                      example: 1
+                    username:
+                      type: string
+                      example: john_doe
+                    user_email:
+                      type: string
+                      example: john.doe@example.com
+                    user_role:
+                      type: string
+                      enum: [user, agent, admin]
+                      example: user
+                    links:
+                      type: object
+                      properties:
+                        self:
+                          type: string
+                          example: "/api/users/1"
+        "401":
+          description: Unauthorized - Only admin users can list all accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: User ID
+
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Returns a user by their ID.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    example: 1
+                  username:
+                    type: string
+                    example: john_doe
+                  user_email:
+                    type: string
+                    example: john.doe@example.com
+                  user_firstName:
+                    type: string
+                    example: John
+                  user_lastName:
+                    type: string
+                    example: Doe
+                  user_phone:
+                    type: string
+                    example: "1234567890"
+                  user_role:
+                    type: string
+                    enum: [user, agent, admin]
+                    example: user
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/users/1"
+        "401":
+          description: Unauthorized - Non-admin users can only view their own record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Updates a user's information.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_email:
+                  type: string
+                  format: email
+                  example: updated.email@example.com
+                user_phone:
+                  type: string
+                  example: "9876543210"
+                user_firstName:
+                  type: string
+                  example: Updated
+                user_lastName:
+                  type: string
+                  example: Name
+                password:
+                  type: string
+                  format: password
+                  example: newSecurePassword123
+      responses:
+        "200":
+          description: User successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "User updated successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/users/1"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Deletes a user account (admin only or self-deletion).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User deleted successfully"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/login:
+    post:
+      tags:
+        - Users
+      summary: User login
+      description: Authenticates a user and returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: john_doe
+                password:
+                  type: string
+                  format: password
+                  example: securePassword123
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    type: object
+                    properties:
+                      user_id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: john_doe
+                      user_role:
+                        type: string
+                        enum: [user, agent, admin]
+                        example: user
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/users/1"
+        "401":
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /properties:
+    get:
+      tags:
+        - Properties
+      summary: Get all properties
+      description: Returns a list of all properties with optional filtering.
+      parameters:
+        - in: query
+          name: minPrice
+          schema:
+            type: number
+          description: Minimum price filter
+        - in: query
+          name: maxPrice
+          schema:
+            type: number
+          description: Maximum price filter
+        - in: query
+          name: bedrooms
+          schema:
+            type: integer
+          description: Number of bedrooms
+        - in: query
+          name: bathrooms
+          schema:
+            type: integer
+          description: Number of bathrooms
+        - in: query
+          name: propertyType
+          schema:
+            type: string
+          description: Type of property (apartment, house, etc.)
+      responses:
+        "200":
+          description: List of properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    property_id:
+                      type: integer
+                      example: 1
+                    title:
+                      type: string
+                      example: "Modern Apartment Downtown"
+                    price:
+                      type: number
+                      example: 250000
+                    address:
+                      type: string
+                      example: "123 Main St, City"
+                    bedrooms:
+                      type: integer
+                      example: 2
+                    bathrooms:
+                      type: integer
+                      example: 1
+                    property_type:
+                      type: string
+                      example: "apartment"
+                    image_url:
+                      type: string
+                      example: "/uploads/property1.jpg"
+                    links:
+                      type: object
+                      properties:
+                        self:
+                          type: string
+                          example: "/api/properties/1"
+                        agent:
+                          type: string
+                          example: "/api/users/2"
+
+    post:
+      tags:
+        - Properties
+      summary: Create property
+      description: Creates a new property listing (agent or admin role required).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - price
+                - address
+                - bedrooms
+                - bathrooms
+                - property_type
+                - description
+              properties:
+                title:
+                  type: string
+                  example: "Modern Apartment Downtown"
+                price:
+                  type: number
+                  example: 250000
+                address:
+                  type: string
+                  example: "123 Main St, City"
+                bedrooms:
+                  type: integer
+                  example: 2
+                bathrooms:
+                  type: integer
+                  example: 1
+                property_type:
+                  type: string
+                  example: "apartment"
+                description:
+                  type: string
+                  example: "Beautiful modern apartment in the heart of the city."
+                square_feet:
+                  type: integer
+                  example: 1200
+                year_built:
+                  type: integer
+                  example: 2015
+      responses:
+        "201":
+          description: Property successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  property_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "Property created successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/properties/1"
+        "401":
+          description: Unauthorized - Must be agent or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "400":
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /properties/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: Property ID
+
+    get:
+      tags:
+        - Properties
+      summary: Get property by ID
+      description: Returns a property by its ID.
+      responses:
+        "200":
+          description: Property details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  property_id:
+                    type: integer
+                    example: 1
+                  title:
+                    type: string
+                    example: "Modern Apartment Downtown"
+                  price:
+                    type: number
+                    example: 250000
+                  address:
+                    type: string
+                    example: "123 Main St, City"
+                  bedrooms:
+                    type: integer
+                    example: 2
+                  bathrooms:
+                    type: integer
+                    example: 1
+                  property_type:
+                    type: string
+                    example: "apartment"
+                  description:
+                    type: string
+                    example: "Beautiful modern apartment in the heart of the city."
+                  square_feet:
+                    type: integer
+                    example: 1200
+                  year_built:
+                    type: integer
+                    example: 2015
+                  image_url:
+                    type: string
+                    example: "/uploads/property1.jpg"
+                  agent_id:
+                    type: integer
+                    example: 2
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/properties/1"
+                      agent:
+                        type: string
+                        example: "/api/users/2"
+                      bookings:
+                        type: string
+                        example: "/api/properties/1/bookings"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Properties
+      summary: Update property
+      description: Updates a property listing (agent owner or admin role required).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Apartment Title"
+                price:
+                  type: number
+                  example: 275000
+                address:
+                  type: string
+                  example: "Updated address"
+                bedrooms:
+                  type: integer
+                  example: 3
+                bathrooms:
+                  type: integer
+                  example: 2
+                property_type:
+                  type: string
+                  example: "condo"
+                description:
+                  type: string
+                  example: "Updated property description."
+                square_feet:
+                  type: integer
+                  example: 1300
+                year_built:
+                  type: integer
+                  example: 2016
+      responses:
+        "200":
+          description: Property successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  property_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "Property updated successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/properties/1"
+        "401":
+          description: Unauthorized - Must be property owner or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Properties
+      summary: Delete property
+      description: Deletes a property listing (agent owner or admin role required).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Property successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property deleted successfully"
+        "401":
+          description: Unauthorized - Must be property owner or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get user bookings
+      description: Returns a list of all bookings for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    booking_id:
+                      type: integer
+                      example: 1
+                    property_id:
+                      type: integer
+                      example: 1
+                    user_id:
+                      type: integer
+                      example: 3
+                    booking_date:
+                      type: string
+                      format: date
+                      example: "2023-04-15"
+                    booking_time:
+                      type: string
+                      example: "14:00"
+                    attended:
+                      type: boolean
+                      example: false
+                    notes:
+                      type: string
+                      example: "Interested in the kitchen space"
+                    links:
+                      type: object
+                      properties:
+                        self:
+                          type: string
+                          example: "/api/bookings/1"
+                        property:
+                          type: string
+                          example: "/api/properties/1"
+                        user:
+                          type: string
+                          example: "/api/users/3"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - Bookings
+      summary: Create booking
+      description: Creates a new property viewing booking.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - property_id
+                - booking_date
+                - booking_time
+              properties:
+                property_id:
+                  type: integer
+                  example: 1
+                booking_date:
+                  type: string
+                  format: date
+                  example: "2023-04-15"
+                booking_time:
+                  type: string
+                  example: "14:00"
+                notes:
+                  type: string
+                  example: "Interested in the kitchen space"
+      responses:
+        "201":
+          description: Booking successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "Booking created successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/bookings/1"
+                      property:
+                        type: string
+                        example: "/api/properties/1"
+        "400":
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: Booking ID
+
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Returns a booking by its ID.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 1
+                  property_id:
+                    type: integer
+                    example: 1
+                  user_id:
+                    type: integer
+                    example: 3
+                  booking_date:
+                    type: string
+                    format: date
+                    example: "2023-04-15"
+                  booking_time:
+                    type: string
+                    example: "14:00"
+                  attended:
+                    type: boolean
+                    example: false
+                  notes:
+                    type: string
+                    example: "Interested in the kitchen space"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/bookings/1"
+                      property:
+                        type: string
+                        example: "/api/properties/1"
+                      user:
+                        type: string
+                        example: "/api/users/3"
+        "401":
+          description: Unauthorized - Must be booking owner, property agent, or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Bookings
+      summary: Update booking
+      description: Updates a booking (user can update their own, agent can mark as attended).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking_date:
+                  type: string
+                  format: date
+                  example: "2023-04-20"
+                booking_time:
+                  type: string
+                  example: "15:30"
+                attended:
+                  type: boolean
+                  example: true
+                notes:
+                  type: string
+                  example: "Updated notes about the viewing"
+      responses:
+        "200":
+          description: Booking successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "Booking updated successfully"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/bookings/1"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Bookings
+      summary: Delete booking
+      description: Deletes a booking (owner or admin only).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Booking deleted successfully"
+        "401":
+          description: Unauthorized - Must be booking owner or admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /favourites:
+    get:
+      tags:
+        - Favourites
+      summary: Get user favourites
+      description: Returns a list of all favourited properties for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of favourited properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    favourite_id:
+                      type: integer
+                      example: 1
+                    property_id:
+                      type: integer
+                      example: 1
+                    user_id:
+                      type: integer
+                      example: 3
+                    property:
+                      type: object
+                      properties:
+                        property_id:
+                          type: integer
+                          example: 1
+                        title:
+                          type: string
+                          example: "Modern Apartment Downtown"
+                        price:
+                          type: number
+                          example: 250000
+                        address:
+                          type: string
+                          example: "123 Main St, City"
+                        image_url:
+                          type: string
+                          example: "/uploads/property1.jpg"
+                    links:
+                      type: object
+                      properties:
+                        self:
+                          type: string
+                          example: "/api/favourites/1"
+                        property:
+                          type: string
+                          example: "/api/properties/1"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - Favourites
+      summary: Add favourite
+      description: Adds a property to the user's favourites.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - property_id
+              properties:
+                property_id:
+                  type: integer
+                  example: 1
+      responses:
+        "201":
+          description: Property successfully added to favourites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  favourite_id:
+                    type: integer
+                    example: 1
+                  message:
+                    type: string
+                    example: "Property added to favourites"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/api/favourites/1"
+                      property:
+                        type: string
+                        example: "/api/properties/1"
+        "400":
+          description: Bad request - property already in favourites
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found - property does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /favourites/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: Favourite ID
+
+    delete:
+      tags:
+        - Favourites
+      summary: Remove favourite
+      description: Removes a property from the user's favourites.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Property successfully removed from favourites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property removed from favourites"
+        "401":
+          description: Unauthorized - Must be favourite owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

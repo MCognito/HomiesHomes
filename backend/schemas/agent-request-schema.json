@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Request Schema",
+  "description": "Defines what an agent application should look like",
+  "type": "object",
+  "definitions": {
+    "agentRequest": {
+      "type": "object",
+      "required": ["request_reason"],
+      "properties": {
+        "request_reason": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 1000,
+          "pattern": "^[a-zA-Z0-9\\s\\.,\\-\\(\\)&'\":;\\@#%\\!\\?\\/\\+\\*\\n\\r\\[\\]]+$",
+          "description": "Explain why you want to become an agent (10-1000 chars)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentRequestStatus": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Current state of the application"
+        },
+        "response_reason": {
+          "type": "string",
+          "maxLength": 1000,
+          "pattern": "^[a-zA-Z0-9\\s\\.,\\-\\(\\)&'\":;\\@#%\\!\\?\\/\\+\\*\\n\\r\\[\\]]+$",
+          "description": "Feedback from admins about why the request was approved or rejected"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Booking Schema",
+  "description": "Schema for validating booking resources",
+  "type": "object",
+  "definitions": {
+    "booking": {
+      "type": "object",
+      "required": ["property_id", "scheduled_date", "scheduled_time"],
+      "properties": {
+        "property_id": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "pattern": "^\\d+$",
+          "description": "ID of the property being booked"
+        },
+        "user_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ID of the user making the booking"
+        },
+        "scheduled_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the booking in YYYY-MM-DD format. Must be today or a future date."
+        },
+        "scheduled_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Time of the booking in 24-hour format (HH:MM). Must be during business hours (09:00-17:00)."
+        },
+        "booking_status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "default": "pending",
+          "description": "Status of the booking. New bookings are 'pending' by default."
+        }
+      },
+      "additionalProperties": false
+    },
+    "bookingUpdate": {
+      "type": "object",
+      "properties": {
+        "scheduled_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the booking in YYYY-MM-DD format. Must be today or a future date."
+        },
+        "scheduled_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Time of the booking in 24-hour format (HH:MM). Must be during business hours (09:00-17:00)."
+        },
+        "booking_status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "description": "Status of the booking"
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "bookingStatusUpdate": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "description": "New status for the booking"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
