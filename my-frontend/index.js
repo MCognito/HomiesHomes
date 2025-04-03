@@ -1,28 +1,28 @@
-// My Blog API
+/**
+ * HomiesHomes API Server
+ * Starting point for our real estate web application
+ */
 
-// Set up the application and its router
-
-//const mySQL = require("mysql");
+// Core packages we need
 const Koa = require("koa");
 const Router = require("koa-router");
 
+// Create app and router
 const app = new Koa();
 const router = new Router();
 
-/*
- * Define route handler(s):
+/**
+ * Set up  routes
  *
- * This means we connect HTTP methods: GET, POST,...
- * and the URI paths: /some/uri/path
- * to JavaScript functions that handle the request
- *
- * Once defined we then add thme to the app object
- *
+ * Each route connects a URL path to a JavaScript function
+ * that will handle the request and send back a response
  */
 
+// Simple welcome endpoint
 router.get("/homes", welcomeAPI);
 app.use(router.routes());
 
+// A basic welcome message to verify the API is running
 function welcomeAPI(ctx, next) {
   ctx.body = {
     message: [
@@ -32,12 +32,13 @@ function welcomeAPI(ctx, next) {
   };
 }
 
+// Connect property routes
 const houses = require("./backend/routes/houses");
 app.use(houses.routes());
 
+// Add middleware to parse request bodies
 const bodyParser = require("koa-bodyparser");
 app.use(bodyParser());
 
-// Finally, run the app as a process on a given port
-
+// Start the server on port 3000
 app.listen(3000);

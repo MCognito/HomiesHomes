@@ -1,31 +1,39 @@
 /**
- * A module to run JSON Schema based validation on request/response data.
- * @module controllers/validation
- * @see schemas/* for JSON Schema definition files
+ * Data validation using JSON Schema
  */
 
 const { Validator, ValidationError } = require("jsonschema");
 
-// Load schema definitions
-const propertySchema = require("../schemas/property.json").definitions.property;
-const propertyUpdateSchema = require("../schemas/property.json").definitions
-  .propertyUpdate;
+// Grab all the schema definitions
+const propertySchema = require("../schemas/property-schema.json").definitions
+  .property;
+const propertyUpdateSchema = require("../schemas/property-schema.json")
+  .definitions.propertyUpdate;
+const propertySearchSchema = require("../schemas/property-schema.json")
+  .definitions.propertySearch;
 
-const bookingSchema = require("../schemas/booking.json").definitions.booking;
-const bookingUpdateSchema = require("../schemas/booking.json").definitions
-  .bookingUpdate;
-const bookingStatusUpdateSchema = require("../schemas/booking.json").definitions
-  .bookingStatusUpdate;
+const bookingSchema = require("../schemas/booking-schema.json").definitions
+  .booking;
+const bookingUpdateSchema = require("../schemas/booking-schema.json")
+  .definitions.bookingUpdate;
+const bookingStatusUpdateSchema = require("../schemas/booking-schema.json")
+  .definitions.bookingStatusUpdate;
 
-const userSchema = require("../schemas/user.json").definitions.user;
-const loginSchema = require("../schemas/user.json").definitions.login;
-const roleUpdateSchema = require("../schemas/user.json").definitions.roleUpdate;
+const userSchema = require("../schemas/user-schema.json").definitions.user;
+const loginSchema = require("../schemas/user-schema.json").definitions.login;
+const userUpdateSchema = require("../schemas/user-schema.json").definitions
+  .userUpdate;
+
+// Additional schemas for agent requests and favorites
+const agentRequestSchema = require("../schemas/agent-request-schema.json")
+  .definitions.agentRequest;
+const agentRequestStatusSchema = require("../schemas/agent-request-schema.json")
+  .definitions.agentRequestStatus;
+const favouriteSchema = require("../schemas/favourites-schema.json").definitions
+  .favourite;
 
 /**
- * Wrapper that returns a Koa middleware validator for a given schema.
- * @param {object} schema - The JSON schema definition of the resource
- * @param {string} resource - The name of the resource e.g. 'property'
- * @returns {function} - A Koa middleware handler taking (ctx, next) params
+ * Creates middleware that validates data against a schema
  */
 const makeKoaValidator = (schema, resource) => {
   const v = new Validator();
@@ -34,30 +42,77 @@ const makeKoaValidator = (schema, resource) => {
     propertyName: resource,
   };
 
-  /**
-   * Koa middleware handler function to do validation
-   * @param {object} ctx - The Koa request/response context object
-   * @param {function} next - The Koa next callback
-   * @throws {ValidationError} a jsonschema library exception
-   */
   const handler = async (ctx, next) => {
     const body = ctx.request.body;
 
+    // Extra logging for property validation
+    if (resource === "property") {
+      console.log(`Validating ${resource} data:`, JSON.stringify(body));
+    }
+
     try {
       v.validate(body, schema, validationOptions);
+
+      // Log when validation passes
+      if (resource === "property") {
+        console.log(`${resource} validation successful`);
+      }
+
+      // Special handling for booking date/time validation
+      if (
+        resource === "booking" &&
+        (body.scheduled_date || body.scheduled_time)
+      ) {
+        const errors = {};
+
+        // Check if booking date is in the future
+        if (body.scheduled_date) {
+          const bookingDate = new Date(body.scheduled_date);
+          bookingDate.setHours(0, 0, 0, 0); // Start of day
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Start of day
+
+          if (bookingDate < today) {
+            errors.scheduled_date =
+              "Booking date must be today or in the future";
+          }
+        }
+
+        // Check if booking time is during business hours
+        if (body.scheduled_time) {
+          const [hours, minutes] = body.scheduled_time.split(":").map(Number);
+
+          if (hours < 9 || (hours === 17 && minutes > 0) || hours > 17) {
+            errors.scheduled_time =
+              "Booking time must be during business hours (9:00 AM to 5:00 PM)";
+          }
+        }
+
+        // Return validation errors if found
+        if (Object.keys(errors).length > 0) {
+          ctx.status = 400;
+          ctx.body = {
+            message: "Invalid booking details",
+            errors: errors,
+          };
+          return;
+        }
+      }
+
       await next();
     } catch (error) {
       if (error instanceof ValidationError) {
-        console.error("Validation error:", error);
+        console.error(`Validation error for ${resource}:`, error);
         ctx.status = 400;
 
-        // Format the error response
+        // Format errors for easier frontend handling
         const formattedErrors = {};
         error.instance = error.instance || {};
 
         if (error.errors && error.errors.length > 0) {
           error.errors.forEach((err) => {
-            // Extract the property path
+            // Clean up the property path
             const path = err.property.replace(`${resource}.`, "");
             formattedErrors[path] = err.message;
           });
@@ -66,11 +121,11 @@ const makeKoaValidator = (schema, resource) => {
         }
 
         ctx.body = {
-          message: "Validation failed",
+          message: "Incorrect format fields",
           errors: formattedErrors,
         };
       } else {
-        // If it's not a validation error, pass it up
+        console.error(`Unexpected error in ${resource} validation:`, error);
         throw error;
       }
     }
@@ -84,6 +139,10 @@ exports.validateProperty = makeKoaValidator(propertySchema, "property");
 exports.validatePropertyUpdate = makeKoaValidator(
   propertyUpdateSchema,
   "property"
+);
+exports.validatePropertySearch = makeKoaValidator(
+  propertySearchSchema,
+  "propertySearch"
 );
 
 // Booking validators
@@ -100,12 +159,23 @@ exports.validateBookingStatusUpdate = makeKoaValidator(
 // User validators
 exports.validateUser = makeKoaValidator(userSchema, "user");
 exports.validateLogin = makeKoaValidator(loginSchema, "login");
-exports.validateRoleUpdate = makeKoaValidator(roleUpdateSchema, "role");
+exports.validateUserUpdate = makeKoaValidator(userUpdateSchema, "user");
+
+// Agent request validators
+exports.validateAgentRequest = makeKoaValidator(
+  agentRequestSchema,
+  "agentRequest"
+);
+exports.validateAgentRequestStatus = makeKoaValidator(
+  agentRequestStatusSchema,
+  "agentRequestStatus"
+);
+
+// Favourites validators
+exports.validateFavourite = makeKoaValidator(favouriteSchema, "favourite");
 
 /**
- * Sanitize a string for database usage and XSS prevention
- * @param {String} str - The string to sanitize
- * @returns {String} - Sanitized string
+ * Cleans strings to prevent XSS attacks
  */
 exports.sanitizeString = (str) => {
   if (!str || typeof str !== "string") return "";

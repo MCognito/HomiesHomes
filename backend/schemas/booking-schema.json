@@ -1,63 +1,76 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
   "title": "Booking Schema",
-  "description": "Schema for creating and updating viewing bookings",
+  "description": "Schema for validating booking resources",
+  "type": "object",
   "definitions": {
-    "bookingBase": {
+    "booking": {
       "type": "object",
+      "required": ["property_id", "scheduled_date", "scheduled_time"],
       "properties": {
         "property_id": {
-          "description": "ID of the property being booked for viewing",
-          "oneOf": [
-            { "type": "integer", "minimum": 1 },
-            { "type": "string", "pattern": "^[1-9][0-9]*$" }
-          ]
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "pattern": "^\\d+$",
+          "description": "ID of the property being booked"
+        },
+        "user_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "ID of the user making the booking"
         },
         "scheduled_date": {
           "type": "string",
           "format": "date",
-          "description": "Date of the viewing appointment (YYYY-MM-DD)"
+          "description": "Date of the booking in YYYY-MM-DD format. Must be today or a future date."
         },
         "scheduled_time": {
           "type": "string",
           "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
-          "description": "Time of the viewing appointment (HH:MM)"
+          "description": "Time of the booking in 24-hour format (HH:MM). Must be during business hours (09:00-17:00)."
+        },
+        "booking_status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "default": "pending",
+          "description": "Status of the booking. New bookings are 'pending' by default."
+        }
+      },
+      "additionalProperties": false
+    },
+    "bookingUpdate": {
+      "type": "object",
+      "properties": {
+        "scheduled_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the booking in YYYY-MM-DD format. Must be today or a future date."
+        },
+        "scheduled_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Time of the booking in 24-hour format (HH:MM). Must be during business hours (09:00-17:00)."
         },
         "booking_status": {
           "type": "string",
           "enum": ["pending", "confirmed", "cancelled", "attended"],
           "description": "Status of the booking"
         }
-      }
-    }
-  },
-
-  "allOf": [{ "$ref": "#/definitions/bookingBase" }],
-
-  "oneOf": [
-    {
-      "title": "Create booking",
-      "required": ["property_id", "scheduled_date", "scheduled_time"],
+      },
+      "minProperties": 1,
       "additionalProperties": false
     },
-    {
-      "title": "Update booking",
-      "required": ["scheduled_date", "scheduled_time"],
-      "additionalProperties": false
-    },
-    {
-      "title": "Update booking status",
+    "bookingStatusUpdate": {
       "type": "object",
+      "required": ["status"],
       "properties": {
         "status": {
           "type": "string",
           "enum": ["pending", "confirmed", "cancelled", "attended"],
-          "description": "Status to update the booking to"
+          "description": "New status for the booking"
         }
       },
-      "required": ["status"],
       "additionalProperties": false
     }
-  ]
+  }
 }

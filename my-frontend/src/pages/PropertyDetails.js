@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBed,
@@ -11,6 +11,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 import defaultImage from "../assets/prop1.jpg";
+import { hasLink, enhanceResourceWithLinks } from "../services/hateoas";
+import API_BASE_URL from "../config/api";
 
 // Import all property images for dynamic loading
 import prop1 from "../assets/prop1.jpg";
@@ -19,8 +21,6 @@ import prop1 from "../assets/prop1.jpg";
 const imageMap = {
   "prop1.jpg": prop1,
 };
-
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
 
 const PropertyDetails = ({ token, userInfo }) => {
   const { id } = useParams();
@@ -37,6 +37,7 @@ const PropertyDetails = ({ token, userInfo }) => {
   const [isFavourited, setIsFavourited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   // Helper function to get the image source
   const getImageSource = (imageName) => {
@@ -63,33 +64,64 @@ const PropertyDetails = ({ token, userInfo }) => {
 
       try {
         console.log(`Fetching property details for ID: ${id}`);
-        const res = await fetch(`${API_BASE_URL}/properties/${id}`, {
+
+        const options = {
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: token ? `Bearer ${token}` : "",
           },
           credentials: "include",
-          cache: "default",
-        });
+          cache: "no-store", // Force browser to bypass cache
+        };
 
-        if (!res.ok) {
-          throw new Error(`Error fetching property: ${res.status}`);
+        // Standard fetch 
+        const response = await fetch(
+          `${API_BASE_URL}/properties/${id}`,
+          options
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error fetching property: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data || !data.data) {
+          console.error("Property data not found in response:", data);
+          throw new Error("Property data structure is invalid");
         }
 
         // Check for role-based headers
-        const agentAccess = res.headers.get("X-Agent-Access") === "true";
-        const adminAccess = res.headers.get("X-Admin-Access") === "true";
+        const agentAccess = response.headers.get("X-Agent-Access") === "true";
+        const adminAccess = response.headers.get("X-Admin-Access") === "true";
 
         setHasAgentAccess(agentAccess);
         setHasAdminAccess(adminAccess);
 
-        const data = await res.json();
-        setProperty(data.data || null);
+        // Extract and enhance the property with full links
+        const enhancedProperty = enhanceResourceWithLinks(data.data);
 
-        // Store HATEOAS links if present
-        if (data._links) {
-          setLinks(data._links);
+        // Additional validation to ensure property data is complete
+        if (!enhancedProperty || !enhancedProperty.title) {
+          throw new Error("Property data is incomplete");
         }
+
+        setProperty(enhancedProperty);
+
+        // Log data source
+        console.log(`Property data was fetched from server`);
+
+        // Store HATEOAS links from response
+        setLinks(data._links || {});
+
+        // Set a flag that we viewed this property - will trigger refresh when going to properties page
+        localStorage.setItem("propertyViewed", "true");
+        localStorage.setItem("lastViewedProperty", id);
+        localStorage.setItem("viewTimestamp", Date.now().toString());
+        console.log(
+          "[DEBUG] PropertyDetails: Set propertyViewed flag for the Properties page"
+        );
 
         setLoading(false);
       } catch (err) {
@@ -102,61 +134,107 @@ const PropertyDetails = ({ token, userInfo }) => {
     fetchProperty();
   }, [id, token]);
 
+  // Add useEffect to call fetchFavorites
   useEffect(() => {
-    const checkFavourite = async () => {
-      if (!token || !id) return;
+    if (token && id) {
+      fetchFavorites();
+    }
+  }, [token, id]);
 
-      try {
-        const res = await fetch(`${API_BASE_URL}/favourites`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "include",
-          cache: "default",
-        });
+  const fetchFavorites = async () => {
+    if (!token) return;
 
-        if (res.ok) {
-          const data = await res.json();
-          const favIds = data.data
-            ? data.data.map((p) => p.property_id || p.id)
-            : [];
-          setIsFavourited(favIds.includes(Number(id)));
-        }
-      } catch (err) {
-        console.error("Failed to check favourites:", err);
+    try {
+      console.log("[DEBUG] PropertyDetails: Fetching favorites");
+
+      const options = {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+        cache: "no-store",
+      };
+
+      const response = await fetch(`${API_BASE_URL}/favourites`, options);
+
+      if (!response.ok) {
+        console.error("Error fetching favorites:", response.status);
+        return;
       }
-    };
 
-    checkFavourite();
-  }, [id, token]);
+      const data = await response.json();
+
+      if (data && data.data) {
+        console.log(
+          `[DEBUG] PropertyDetails: Loaded ${data.data.length} favorites`
+        );
+
+        // Check if the current property is in the favorites
+        const favoriteIds = data.data.map((fav) =>
+          parseInt(fav.property_id || fav.id, 10)
+        );
+
+        const propertyIdNum = parseInt(id, 10);
+        setIsFavourited(favoriteIds.includes(propertyIdNum));
+        console.log(
+          `[DEBUG] PropertyDetails: Property ${id} is ${
+            favoriteIds.includes(propertyIdNum) ? "" : "not "
+          }in favorites`
+        );
+      }
+    } catch (err) {
+      console.error("[DEBUG] PropertyDetails: Favorites fetch error:", err);
+    }
+  };
 
   const toggleFavourite = async () => {
     if (!token) {
-      alert("Please log in to add favorites");
+      alert("Please log in to favorite properties");
       return;
     }
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/favourites${isFavourited ? `/${id}` : ""}`,
-        {
-          method: isFavourited ? "DELETE" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "include",
-          body: isFavourited ? undefined : JSON.stringify({ property_id: id }),
-        }
-      );
+      const method = isFavourited ? "DELETE" : "POST";
+      const endpoint = isFavourited
+        ? `${API_BASE_URL}/favourites/${id}`
+        : `${API_BASE_URL}/favourites`;
 
-      if (res.ok) {
+      console.log(`[DEBUG] PropertyDetails: ${method} request to ${endpoint}`);
+
+      const options = {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      };
+
+      // Add body for POST requests
+      if (method === "POST") {
+        options.body = JSON.stringify({ property_id: parseInt(id, 10) });
+      }
+
+      const response = await fetch(endpoint, options);
+
+      if (response.ok) {
+        // Toggle the favorite state
         setIsFavourited(!isFavourited);
+        console.log(
+          `[DEBUG] PropertyDetails: Successfully ${
+            isFavourited ? "removed from" : "added to"
+          } favorites`
+        );
+
+        // Refetch favorites to ensure state is correct
+        setTimeout(fetchFavorites, 100);
       } else {
-        console.error(`Failed to toggle favorite: ${res.status}`);
+        console.error(`Failed to toggle favorite: ${response.status}`);
       }
     } catch (err) {
-      console.error("Favourite toggle failed:", err);
+      console.error("Error toggling favourite:", err);
     }
   };
 
@@ -168,7 +246,7 @@ const PropertyDetails = ({ token, userInfo }) => {
   };
 
   const isValidTimeRange = (timeString) => {
-    // Check if time is between 9am and 7pm (business hours)
+    // Check if time is between 9am and 5pm (business hours)
     const hour = parseInt(timeString.split(":")[0], 10);
     return hour >= 9 && hour < 19;
   };
@@ -186,21 +264,49 @@ const PropertyDetails = ({ token, userInfo }) => {
 
   const validateBookingInputs = () => {
     const errors = {};
+    const now = new Date();
+    const businessStart = 9; // 9 AM
+    const businessEnd = 17; // 5 PM
 
+    // Date validation
     if (!date) {
       errors.date = "Please select a date";
     } else if (!isFutureDate(date)) {
-      errors.date = "Viewing date must be today or in the future";
+      errors.date = "Booking must be for today or a future date";
     }
 
+    // Time validation
     if (!time) {
       errors.time = "Please select a time";
-    } else if (!isValidTimeRange(time)) {
-      errors.time = "Viewing time must be between 9:00 AM and 7:00 PM";
+    } else {
+      const [hours, minutes] = time.split(":").map((num) => parseInt(num, 10));
+
+      // Check business hours
+      if (
+        hours < businessStart ||
+        (hours === businessEnd && minutes > 0) ||
+        hours > businessEnd
+      ) {
+        errors.time = `Booking time must be during business hours (${businessStart}:00 AM to ${businessEnd}:00 PM)`;
+      }
+
+      // Check if time has already passed for same-day bookings
+      if (date && isToday(date)) {
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+
+        if (
+          hours < currentHour ||
+          (hours === currentHour && minutes <= currentMinute)
+        ) {
+          errors.time = "You cannot book a time that has already passed";
+        }
+      }
     }
 
+    // Check combined date and time
     if (date && time && !isFutureDateTime(date, time)) {
-      errors.time = "You cannot book a time that has already passed";
+      errors.time = "The selected date and time must be in the future";
     }
 
     setValidationErrors(errors);
@@ -217,6 +323,7 @@ const PropertyDetails = ({ token, userInfo }) => {
     // Validate inputs
     if (!validateBookingInputs()) {
       setMessageType("error");
+      setMessage("Incorrect format fields");
       return;
     }
 
@@ -279,7 +386,7 @@ const PropertyDetails = ({ token, userInfo }) => {
   const handleDelete = async () => {
     if (
       !links.delete ||
-      !confirm("Are you sure you want to delete this property?")
+      !window.confirm("Are you sure you want to delete this property?")
     ) {
       return;
     }
@@ -324,22 +431,67 @@ const PropertyDetails = ({ token, userInfo }) => {
     );
   };
 
+  // New function to handle HATEOAS link actions
+  const handleLinkAction = (action) => {
+    console.log("Following HATEOAS link:", action);
+
+    // Handle based on method
+    switch (action.method) {
+      case "DELETE":
+        if (window.confirm("Are you sure you want to delete this property?")) {
+          handleDelete();
+        }
+        break;
+      case "PUT":
+        navigate(`/editProperty/${id}`);
+        break;
+      case "GET":
+        // GET links are handled automatically by the Link component
+        break;
+      default:
+        console.log("Unhandled link action:", action);
+    }
+  };
+
   if (loading)
     return <p className="loading-message">Loading property details...</p>;
   if (error) return <p className="error-message">{error}</p>;
   if (!property) return <p className="no-results">Property not found</p>;
 
+  // Extract values with fallbacks to prevent UI errors
+  const title = property.title || "Unnamed Property";
+  const location = property.location || "Location unavailable";
+  const description = property.description || "No description available";
+  const price = property.price ? parseFloat(property.price) : 0;
+  const bedrooms = property.bedrooms || 0;
+  const bathrooms = property.bathrooms || 0;
+  const propertyType = property.property_type || "Not specified";
+  const imageUrl = property.image_url;
+
+  // Handle agent data safely
+  const agent = property.agent || {};
+  const agentName =
+    agent.firstName && agent.lastName
+      ? `${agent.firstName} ${agent.lastName}`
+      : agent.username || "Unknown";
+  const agentEmail = agent.email || "No email provided";
+  const agentPhone = agent.phone || "Not provided";
+
   return (
     <div className="property-details-page">
       <img
-        src={getImageSource(property.image_url)}
-        alt={property.title}
+        src={getImageSource(imageUrl)}
+        alt={title}
         className="property-full-img"
+        onError={(e) => {
+          console.warn("Image failed to load:", imageUrl);
+          e.target.src = defaultImage; // Fallback to default image
+        }}
       />
 
       <div className="property-info-container">
         <div className="property-header-with-fav">
-          <h2 className="property-details-title">{property.title}</h2>
+          <h2 className="property-details-title">{title}</h2>
           {token && (
             <div className="favourite-container">
               <FontAwesomeIcon
@@ -352,20 +504,18 @@ const PropertyDetails = ({ token, userInfo }) => {
             </div>
           )}
         </div>
-        <p className="property-price">
-          £{parseFloat(property.price).toLocaleString()}
-        </p>
-        <p className="property-description">{property.description}</p>
+        <p className="property-price">£{price.toLocaleString()}</p>
+        <p className="property-description">{description}</p>
 
         <div className="property-metrics">
           <div className="metric-card">
-            <FontAwesomeIcon icon={faBed} /> {property.bedrooms} Bedrooms
+            <FontAwesomeIcon icon={faBed} /> {bedrooms} Bedrooms
           </div>
           <div className="metric-card">
-            <FontAwesomeIcon icon={faBath} /> {property.bathrooms} Bathrooms
+            <FontAwesomeIcon icon={faBath} /> {bathrooms} Bathrooms
           </div>
           <div className="metric-card">
-            <FontAwesomeIcon icon={faHome} /> {property.property_type}
+            <FontAwesomeIcon icon={faHome} /> {propertyType}
           </div>
         </div>
 
@@ -374,14 +524,12 @@ const PropertyDetails = ({ token, userInfo }) => {
           <div className="agent-info-section">
             <h3>Contact Agent</h3>
             <div className="agent-details">
-              <p className="agent-name">
-                {property.agent.firstName} {property.agent.lastName}
-              </p>
+              <p className="agent-name">{agentName}</p>
               <p className="agent-email">
-                <strong>Email:</strong> {property.agent.email}
+                <strong>Email:</strong> {agentEmail}
               </p>
               <p className="agent-phone">
-                <strong>Phone:</strong> {property.agent.phone || "Not provided"}
+                <strong>Phone:</strong> {agentPhone}
               </p>
             </div>
           </div>
@@ -394,17 +542,23 @@ const PropertyDetails = ({ token, userInfo }) => {
             </button>
           )}
 
-          {links.update && (
-            <Link to={`/editProperty/${property.id}`} className="edit-btn">
-              <FontAwesomeIcon icon={faEdit} /> Edit
-            </Link>
-          )}
+          {hasLink(links, "update") &&
+            userInfo &&
+            (userInfo.user_id === property.agent_id ||
+              userInfo.user_levels === 2) && (
+              <Link to={`/editProperty/${property.id}`} className="edit-btn">
+                <FontAwesomeIcon icon={faEdit} /> Edit
+              </Link>
+            )}
 
-          {links.delete && (
-            <button className="delete-btn" onClick={handleDelete}>
-              <FontAwesomeIcon icon={faTrash} /> Delete
-            </button>
-          )}
+          {hasLink(links, "delete") &&
+            userInfo &&
+            (userInfo.user_id === property.agent_id ||
+              userInfo.user_levels === 2) && (
+              <button className="delete-btn" onClick={handleDelete}>
+                <FontAwesomeIcon icon={faTrash} /> Delete
+              </button>
+            )}
         </div>
 
         {/* Display the role-based capabilities */}
@@ -443,8 +597,13 @@ const PropertyDetails = ({ token, userInfo }) => {
                 required
               />
               {validationErrors.date && (
-                <span className="error-text">{validationErrors.date}</span>
+                <div className="error-text">
+                  <span className="error-icon">⚠️</span> {validationErrors.date}
+                </div>
               )}
+              <span className="helper-text">
+                Select any date from today onwards
+              </span>
             </div>
 
             <div className="form-group">
@@ -455,16 +614,18 @@ const PropertyDetails = ({ token, userInfo }) => {
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 min={isToday(date) ? getCurrentTimeString() : "09:00"}
-                max="19:00"
+                max="17:00"
                 className={validationErrors.time ? "input-error" : ""}
                 required
               />
               {validationErrors.time && (
-                <span className="error-text">{validationErrors.time}</span>
+                <div className="error-text">
+                  <span className="error-icon">⚠️</span> {validationErrors.time}
+                </div>
               )}
               <span className="helper-text">
-                Business hours: 9:00 AM - 7:00 PM
-                {isToday(date) ? ", only future times available" : ""}
+                Business hours: 9:00 AM - 5:00 PM
+                {isToday(date) ? ", only future times available today" : ""}
               </span>
             </div>
 
@@ -492,7 +653,18 @@ const PropertyDetails = ({ token, userInfo }) => {
             </div>
 
             {message && (
-              <p className={`booking-message ${messageType}`}>{message}</p>
+              <div className={`booking-message ${messageType}`}>
+                {messageType === "error" && (
+                  <span className="error-icon">⚠️</span>
+                )}
+                {messageType === "success" && (
+                  <span className="success-icon">✅</span>
+                )}
+                {messageType === "info" && (
+                  <span className="info-icon">ℹ️</span>
+                )}
+                {message}
+              </div>
             )}
           </div>
         </div>

@@ -1,17 +1,14 @@
 /**
- * Generic validation middleware
- * Creates a middleware that validates request data against a provided schema
+ * Validation helpers for request data
+ * Checks that input data meets the required format
  */
 
-/**
- * Creates a validator middleware for Koa
- * @param {Object} schema - The validation schema with field validators
- * @param {String} source - Where to look for data ('body', 'query', 'params')
- * @returns {Function} - Koa middleware function
- */
+
+ // Creates a validator to check incoming data
+
 const createValidator = (schema, source = "body") => {
   return async (ctx, next) => {
-    // Get the data to validate
+    // Grab the data we need to check
     const data =
       source === "body"
         ? ctx.request.body
@@ -21,14 +18,14 @@ const createValidator = (schema, source = "body") => {
         ? ctx.params
         : ctx.request.body;
 
-    // Initialize validation errors
+    // Keep track of any validation problems
     const validationErrors = {};
 
-    // Validate each field according to the schema
+    // Run each field through its validator function
     for (const [field, validator] of Object.entries(schema)) {
       const value = data[field];
 
-      // Only validate if the validator is a function
+      // Skip if validator isn't a function
       if (typeof validator === "function") {
         try {
           const result = validator(value, data);
@@ -42,7 +39,7 @@ const createValidator = (schema, source = "body") => {
       }
     }
 
-    // If validation errors exist, return 400 with the errors
+    // Stop the request if anything failed validation
     if (Object.keys(validationErrors).length > 0) {
       ctx.status = 400;
       ctx.body = {
@@ -52,13 +49,13 @@ const createValidator = (schema, source = "body") => {
       return;
     }
 
-    // If validation passes, continue
+    // continue processing the request
     await next();
   };
 };
 
 /**
- * Common validation functions
+ * Ready-to-use validation functions
  */
 const Validators = {
   required: (value) => {
@@ -162,12 +159,7 @@ const Validators = {
   },
 };
 
-/**
- * Sanitize a string for database usage and XSS prevention
- * @param {String} str - The string to sanitize
- * @param {String} fieldType - The type of field (title, description, etc.)
- * @returns {String} - Sanitized string
- */
+
 const sanitizeString = (str, fieldType = "default") => {
   if (!str || typeof str !== "string") return "";
 

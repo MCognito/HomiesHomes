@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import "../App.css";
-import logo from "../images/logobg.png"; 
+import logo from "../assets/logobg.png"; 
 
 const Register = () => {
   return (

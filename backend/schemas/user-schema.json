@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User Schema",
+  "description": "Schema for validating user resources",
+  "type": "object",
+  "definitions": {
+    "user": {
+      "type": "object",
+      "required": ["username", "user_email", "password"],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Username (alphanumeric with underscore and hyphen allowed)"
+        },
+        "user_email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "description": "Valid email address"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 255,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d@$!%*?&]{8,}$",
+          "description": "Password (minimum 8 characters, must include at least one uppercase letter, one lowercase letter, and one number)"
+        },
+        "user_firstName": {
+          "type": "string",
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z\\s'-]+$",
+          "description": "First name (letters, spaces, apostrophes and hyphens allowed)"
+        },
+        "user_lastName": {
+          "type": "string",
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z\\s'-]+$",
+          "description": "Last name (letters, spaces, apostrophes and hyphens allowed)"
+        },
+        "user_phone": {
+          "type": "string",
+          "pattern": "^\\+?[0-9\\s-]{8,15}$",
+          "maxLength": 50,
+          "description": "Phone number (8-15 digits, can include spaces, hyphens, and a leading plus sign)"
+        },
+        "user_levels": {
+          "type": ["integer", "string"],
+          "enum": [0, 1, 2, "0", "1", "2"],
+          "default": 0,
+          "description": "User access level: 0=regular user, 1=agent, 2=admin"
+        }
+      },
+      "additionalProperties": false
+    },
+    "userUpdate": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Username (alphanumeric with underscore and hyphen allowed)"
+        },
+        "user_email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "description": "Valid email address"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 255,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d@$!%*?&]{8,}$",
+          "description": "Password (minimum 8 characters, must include at least one uppercase letter, one lowercase letter, and one number)"
+        },
+        "user_firstName": {
+          "type": "string",
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z\\s'-]+$",
+          "description": "First name (letters, spaces, apostrophes and hyphens allowed)"
+        },
+        "user_lastName": {
+          "type": "string",
+          "maxLength": 100,
+          "pattern": "^[a-zA-Z\\s'-]+$",
+          "description": "Last name (letters, spaces, apostrophes and hyphens allowed)"
+        },
+        "user_phone": {
+          "type": "string",
+          "pattern": "^\\+?[0-9\\s-]{8,15}$",
+          "maxLength": 50,
+          "description": "Phone number (8-15 digits, can include spaces, hyphens, and a leading plus sign)"
+        },
+        "user_levels": {
+          "type": ["integer", "string"],
+          "enum": [0, 1, 2, "0", "1", "2"],
+          "default": 0,
+          "description": "User access level: 0=regular user, 1=agent, 2=admin"
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "login": {
+      "type": "object",
+      "required": ["username", "password"],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Username or email for login"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 1,
+          "description": "User password"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

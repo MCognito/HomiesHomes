@@ -1,29 +1,44 @@
-import React, { useState, useEffect } from "react";
+/**
+ * Main App Component
+ * Handles user authentication and routing
+ */
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useLocation,
   useNavigate,
 } from "react-router-dom";
-import Header from "./components/Header";
-import LoginModal from "./components/LoginModal";
+import "./App.css";
+import "./styles/Auth.css"; // Styles for login/register forms
 import Home from "./pages/Home";
 import Properties from "./pages/Properties";
 import PropertyDetails from "./pages/PropertyDetails";
 import Favourites from "./pages/Favourites";
-import AddProperty from "./pages/AddProperty";
 import AdminDashboard from "./pages/AdminDashboard";
-import AgentDashboard from "./pages/AgentDashboard";
 import UserDashboard from "./pages/UserDashboard";
-import "@fontsource/poppins";
-import "./App.css";
-import "./styles/Dashboard.css";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AddProperty from "./pages/AddProperty";
+import Header from "./components/Header";
+import LoginModal from "./components/LoginModal";
+import NotFound from "./pages/NotFound";
+import API_BASE_URL from "./config/api";
+import { hasLink } from "./services/hateoas";
+import AgentDashboard from "./pages/AgentDashboard";
 
-// Define API base URL - ensure it matches your backend port
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+// Figure out user's permission level consistently
+const getUserLevel = (user) => {
+  if (!user) return -1;
+  return user.user_levels !== undefined ? user.user_levels : user.user_level;
+};
 
-// Role-based route component
+/**
+ * Protect routes that need authentication
+ * Redirects to home if not logged in or missing permission
+ */
 const ProtectedRoute = ({
   element,
   token,
@@ -35,8 +50,8 @@ const ProtectedRoute = ({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required access level
-  if (userInfo.user_level < requiredLevel) {
+  // Make sure user has high enough permissions
+  if (getUserLevel(userInfo) < requiredLevel) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -52,6 +67,7 @@ function App() {
   const [loginError, setLoginError] = useState("");
   const [showLogin, setShowLogin] = useState(true);
 
+  // Form state for user registration
   const [registerData, setRegisterData] = useState({
     username: "",
     password: "",
@@ -61,9 +77,102 @@ function App() {
     user_lastName: "",
   });
 
+  // Keep track of all properties
   const [properties, setProperties] = useState([]);
 
-  // Auto-login from URL params (for demo/testing)
+  // Fetch properties from the API
+  const fetchAllProperties = useCallback(async () => {
+    console.log("[FETCH] App: Fetching properties");
+    try {
+      const response = await fetch(`${API_BASE_URL}/properties`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        console.error(
+          `[FETCH] App: Error fetching properties: ${response.status}`
+        );
+        return false;
+      }
+
+      const data = await response.json();
+      if (data && data.data && Array.isArray(data.data)) {
+        console.log(
+          `[FETCH] App: Successfully fetched ${data.data.length} properties`
+        );
+        setProperties(data.data);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("[FETCH] App: Error during fetch:", error);
+      return false;
+    }
+  }, [token]);
+
+  // Check saved authentication when the app starts
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        // Try to get the token from browser storage
+        const currentToken =
+          token ||
+          localStorage.getItem("token") ||
+          sessionStorage.getItem("token");
+
+        if (currentToken) {
+          console.log("Checking token validity");
+          const response = await fetch(`${API_BASE_URL}/users/me`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${currentToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            console.log("Token is invalid or expired, logging out");
+            handleLogout();
+            return;
+          }
+
+          const data = await response.json();
+          const userData = data.data;
+
+          if (userData) {
+            console.log(
+              "Token is valid, user data retrieved:",
+              userData.username
+            );
+            setToken(currentToken);
+            setUserInfo(userData);
+          } else {
+            console.log("No user data returned, logging out");
+            handleLogout();
+          }
+        } else {
+          console.log("No token found, continuing as guest");
+        }
+      } catch (error) {
+        console.error("Error checking token:", error);
+        handleLogout();
+      }
+    };
+
+    checkToken();
+  }, []); 
+
+  // Load properties when user authentication changes
+  useEffect(() => {
+    console.log("Fetching initial properties");
+    fetchAllProperties();
+  }, [token, fetchAllProperties]);
+
+  // Support for auto-login from URL (for testing/demo)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const uname = params.get("username");
@@ -73,130 +182,144 @@ function App() {
     }
   }, []);
 
+  // Authenticate a user with username and password
   const handleLogin = async (username, password) => {
     try {
       console.log(`Attempting to login with username: ${username}`);
+      setLoginError(""); // Clear any previous errors
 
-      // Send login request with credentials
+      // Call the login API
       const res = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Include credentials for cross-origin requests
         body: JSON.stringify({ username, password }),
       });
 
       console.log("Response status:", res.status);
 
-      // Handle unauthorized or other error statuses
-      if (!res.ok) {
-        if (res.status === 401) {
-          setLoginError("Invalid username or password");
-          return;
-        }
-        if (res.status === 0) {
-          setLoginError(
-            "Could not connect to server. CORS issue or server is down."
-          );
-          return;
-        }
-      }
-
-      // Try to read the response body regardless of status
+      // Parse the response
       const text = await res.text();
       console.log("Response body:", text);
 
       let data;
       try {
-        // Try to parse as JSON if possible
         data = JSON.parse(text);
       } catch (e) {
         console.error("Error parsing response as JSON:", e);
-        // If not JSON, just use the text
-        data = { message: text || "Unknown server response" };
+        throw new Error("Invalid server response");
+      }
+
+      if (!res.ok) {
+        // Show error messages
+        if (res.status === 401) {
+          throw new Error("Invalid username or password");
+        } else if (res.status === 400) {
+          throw new Error(data.message || "Invalid login data");
+        } else {
+          throw new Error(data.message || "Login failed");
+        }
       }
 
       if (data.token) {
         console.log("Login successful, received token");
+
+        // Save the user data in app
         setUserInfo(data.user);
         setToken(data.token);
         setShowLogin(false);
         setLoginError("");
+
+        // Keep the token for refreshing the page
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("userInfo", JSON.stringify(data.user));
+
+        // Clean up form data
+        setLoginUsername("");
+        setLoginPassword("");
       } else {
-        console.log("Login failed, no token received", data);
-        setLoginError(data.message || "Login failed");
+        throw new Error("No token received");
       }
     } catch (err) {
       console.error("Login Error:", err);
-      setLoginError(
-        "Server error. Please check if your backend server is running. " +
-          err.message
-      );
+      setLoginError(err.message || "Login failed. Please try again.");
     }
   };
 
+  // Search for properties with specific criteria
   const handlePropertySearch = async (filters) => {
     try {
       console.log("Searching properties with filters:", filters);
       const query = new URLSearchParams(filters).toString();
-      const res = await fetch(`${API_BASE_URL}/properties?${query}`, {
+
+      const options = {
+        method: "GET",
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
           "Content-Type": "application/json",
         },
-        credentials: "include", // Include credentials for cross-origin requests
-      });
+        credentials: "include",
+      };
 
-      console.log("Property search response status:", res.status);
+      // Make the search request
+      const response = await fetch(
+        `${API_BASE_URL}/properties/filter`,
+        options
+      );
 
-      if (!res.ok) {
-        console.error(`Error fetching properties: ${res.status}`);
+      if (!response.ok) {
+        console.error(`Error fetching properties: ${response.status}`);
         return;
       }
 
-      // Check for role-based headers
-      const hasAgentAccess = res.headers.get("X-Agent-Access") === "true";
-      const hasAdminAccess = res.headers.get("X-Admin-Access") === "true";
+      const data = await response.json();
+      console.log("Property search response status:", response.status);
+      console.log("Search data was fetched from server");
 
-      // Get Link header if present (RFC 8288 format)
-      const linkHeader = res.headers.get("Link");
+      // Look for special role-based access headers
+      const hasAgentAccess = response.headers.get("X-Agent-Access") === "true";
+      const hasAdminAccess = response.headers.get("X-Admin-Access") === "true";
+
+      // Check if server sent navigation links
+      const linkHeader = response.headers.get("Link");
       if (linkHeader) {
         console.log("HATEOAS Link header:", linkHeader);
       }
 
-      const data = await res.json();
-
-      // Update user permissions based on response headers if needed
-      if (hasAgentAccess && userInfo && userInfo.user_level < 1) {
+      // Update user permissions if the server says they've changed
+      if (hasAgentAccess && userInfo && getUserLevel(userInfo) < 1) {
         console.log("Adjusting user level to Agent based on headers");
-        setUserInfo({ ...userInfo, user_level: 1 });
+        setUserInfo({
+          ...userInfo,
+          user_levels: 1,
+          user_level: 1,
+        });
       }
 
-      if (hasAdminAccess && userInfo && userInfo.user_level < 2) {
+      if (hasAdminAccess && userInfo && getUserLevel(userInfo) < 2) {
         console.log("Adjusting user level to Admin based on headers");
-        setUserInfo({ ...userInfo, user_level: 2 });
+        setUserInfo({
+          ...userInfo,
+          user_levels: 2,
+          user_level: 2,
+        });
       }
 
-      if (data.data) {
-        setProperties(data.data);
-        console.log("Properties loaded:", data.data.length);
-
-        // Also store the HATEOAS links from the response if present
-        if (data._links) {
-          console.log("HATEOAS links in response:", data._links);
-        }
-      }
+      // Show the found properties
+      setProperties(data.data || []);
     } catch (err) {
-      console.error("Property Search Error:", err);
+      console.error("Property search error:", err);
     }
   };
 
+  // Submit the login form
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     handleLogin(loginUsername, loginPassword);
   };
 
+  // Register a new user account
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
@@ -204,13 +327,13 @@ function App() {
       const res = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // Include credentials for cross-origin requests
+        credentials: "include", // For cross-origin cookies
         body: JSON.stringify(registerData),
       });
 
       console.log("Registration response status:", res.status);
 
-      // Handle error statuses
+      // Check for common errors
       if (!res.ok) {
         if (res.status === 0) {
           setLoginError(
@@ -218,137 +341,143 @@ function App() {
           );
           return;
         }
+
+        // Extract the error details
+        const errorData = await res.json();
+        console.log("Registration error data:", errorData);
+
+        if (res.status === 400) {
+          // Show user-friendly validation errors
+          const errorMessage =
+            errorData.message ||
+            errorData.error?.message ||
+            "Registration failed";
+
+          if (errorMessage.includes("Username already exists")) {
+            setLoginError(
+              "Username already exists. Please choose a different username."
+            );
+          } else if (errorMessage.includes("Email already in use")) {
+            setLoginError(
+              "Email already in use. Please use a different email address."
+            );
+          } else {
+            setLoginError(errorMessage);
+          }
+        } else {
+          setLoginError(errorData.message || "Registration failed");
+        }
+        return;
       }
 
-      // Try to read response
-      const text = await res.text();
-      console.log("Response body:", text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("Error parsing response as JSON:", e);
-        data = { message: text || "Unknown server response" };
-      }
+      // Success - process the response
+      const data = await res.json();
+      console.log("Registration response:", data);
 
       if (data.token) {
         console.log("Registration successful, received token");
-        setUserInfo(data.user);
+
+        // Set up user account with default permissions
+        const user = {
+          username: registerData.username,
+          user_email: registerData.user_email,
+          user_firstName: registerData.user_firstName || "",
+          user_lastName: registerData.user_lastName || "",
+          user_levels: 0,
+          user_level: 0,
+        };
+
+        setUserInfo(user);
         setToken(data.token);
-        setShowLogin(false);
+        setShowLogin(false); // Close the login modal
         setLoginError("");
+
+        // Reset the form for next time
+        setRegisterData({
+          username: "",
+          password: "",
+          user_email: "",
+          user_phone: "",
+          user_firstName: "",
+          user_lastName: "",
+        });
+
+        // Make sure we start fresh
+        localStorage.removeItem("token");
+        localStorage.removeItem("userInfo");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("userInfo");
       } else {
         console.log("Registration failed, no token received", data);
         setLoginError(data.message || "Registration failed");
       }
     } catch (err) {
       console.error("Registration Error:", err);
-      setLoginError("Server error: " + err.message);
+      setLoginError("Registration failed. Please try again.");
     }
   };
 
+  // Save register form field changes
   const handleRegisterInputChange = (e) => {
     const { name, value } = e.target;
     setRegisterData((prevData) => ({ ...prevData, [name]: value }));
   };
 
+  // Log the user out of the system
   const handleLogout = () => {
-    setUserInfo(null);
+    console.log("Logging out and clearing all storage");
+
+    // Reset all authentication state
     setToken("");
+    setUserInfo(null);
     setShowLogin(true);
+
+    // Clear login form fields
     setLoginUsername("");
     setLoginPassword("");
-    setProperties([]);
+
+    // Clear registration form too if needed
+    setRegisterData({
+      username: "",
+      password: "",
+      user_email: "",
+      user_phone: "",
+      user_firstName: "",
+      user_lastName: "",
+    });
+
+    // Remove stored credentials
+    localStorage.removeItem("token");
+    localStorage.removeItem("userInfo");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("userInfo");
+
+    // Go back to homepage
+    window.location.href = "/";
   };
 
-  // Fetch properties with HATEOAS links
-  useEffect(() => {
-    if (userInfo && token) {
-      const fetchProperties = async () => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/properties`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = await res.json();
-          if (data.data) {
-            const enriched = data.data.map((prop) => ({
-              ...prop,
-              linkSelf: `${API_BASE_URL}${
-                prop.links?.self || `/properties/${prop.id}`
-              }`,
-              linkUpdate: `${API_BASE_URL}${
-                prop.links?.update || `/properties/${prop.id}`
-              }`,
-              linkDelete: `${API_BASE_URL}${
-                prop.links?.delete || `/properties/${prop.id}`
-              }`,
-            }));
-            setProperties(enriched);
-          }
-        } catch (err) {
-          console.error("Fetch Properties Error:", err);
-        }
-      };
-
-      fetchProperties();
-    }
-  }, [userInfo, token]);
-
-  // Fetch all properties for the Properties page
-  const fetchAllProperties = async () => {
-    try {
-      console.log("Fetching all properties");
-
-      const res = await fetch(`${API_BASE_URL}/properties`, {
-        method: "GET",
-        headers: {
-          Authorization: token ? `Bearer ${token}` : "",
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        cache: "default", // Use browser cache when possible
-      });
-
-      if (!res.ok) {
-        console.error(`Error fetching properties: ${res.status}`);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.data) {
-        console.log(`Loaded ${data.data.length} properties`);
-        setProperties(data.data);
-      }
-    } catch (err) {
-      console.error("Error fetching all properties:", err);
-    }
-  };
-
-  // Add useEffect to update properties when token changes
-  useEffect(() => {
-    if (token) {
-      fetchAllProperties();
-    }
-  }, [token]);
-
-  // Route component for Properties that ensures fresh data
+  // Properties page that uses our central property data
   const PropertiesRoute = () => {
-    // No need to call fetchAllProperties here again
     return (
-      <Properties properties={properties} token={token} userInfo={userInfo} />
+      <Properties
+        properties={properties}
+        token={token}
+        userInfo={userInfo}
+        refreshProperties={fetchAllProperties}
+      />
     );
   };
 
-  // Get appropriate dashboard component based on user level
+  // Show the right dashboard based on user role
   const getDashboardComponent = () => {
     if (!userInfo) return <Navigate to="/" />;
 
-    if (userInfo.user_level >= 2) {
+    const userLevel = getUserLevel(userInfo);
+
+    if (userLevel >= 2) {
       return <AdminDashboard token={token} userInfo={userInfo} />;
-    } else if (userInfo.user_level === 1) {
-      return <AgentDashboard token={token} userInfo={userInfo} />;
+    } else if (userLevel === 1) {
+      return <UserDashboard token={token} userInfo={userInfo} />;
     } else {
       return <UserDashboard token={token} userInfo={userInfo} />;
     }
@@ -359,7 +488,8 @@ function App() {
       <div className="App">
         <Header userInfo={userInfo} onLogout={handleLogout} />
 
-        {showLogin && (
+        {/* Show login/register form when not logged in */}
+        {showLogin && !userInfo && (
           <LoginModal
             isRegistering={isRegistering}
             loginUsername={loginUsername}
@@ -374,6 +504,7 @@ function App() {
           />
         )}
 
+        {/* Main app routes - only show when login modal is closed */}
         {!showLogin && (
           <Routes>
             <Route
@@ -406,7 +537,13 @@ function App() {
               path="/AddProperty"
               element={
                 <ProtectedRoute
-                  element={<AddProperty token={token} userInfo={userInfo} />}
+                  element={
+                    <AddProperty
+                      token={token}
+                      userInfo={userInfo}
+                      onPropertyUpdate={fetchAllProperties}
+                    />
+                  }
                   token={token}
                   userInfo={userInfo}
                   requiredLevel={1}
@@ -422,6 +559,7 @@ function App() {
                       token={token}
                       userInfo={userInfo}
                       isEditing={true}
+                      onPropertyUpdate={fetchAllProperties}
                     />
                   }
                   token={token}
@@ -431,10 +569,21 @@ function App() {
               }
             />
 
-            {/* Dashboard Routes */}
+            {/* Dashboard routes for different user types */}
             <Route
               path="/dashboard"
               element={userInfo ? getDashboardComponent() : <Navigate to="/" />}
+            />
+            <Route
+              path="/agent-dashboard/*"
+              element={
+                <ProtectedRoute
+                  element={<AgentDashboard token={token} userInfo={userInfo} />}
+                  token={token}
+                  userInfo={userInfo}
+                  requiredLevel={1}
+                />
+              }
             />
             <Route
               path="/admin"
@@ -447,20 +596,9 @@ function App() {
                 />
               }
             />
-            <Route
-              path="/agent"
-              element={
-                <ProtectedRoute
-                  element={<AgentDashboard token={token} userInfo={userInfo} />}
-                  token={token}
-                  userInfo={userInfo}
-                  requiredLevel={1}
-                />
-              }
-            />
 
-            {/* Catch-all route */}
-            <Route path="*" element={<Navigate to="/" />} />
+            {/* Handle any unexpected URLs */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         )}
       </div>

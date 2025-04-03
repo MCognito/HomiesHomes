@@ -1,0 +1,258 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Property Schema",
+  "description": "Schema for validating property resources",
+  "type": "object",
+  "definitions": {
+    "property": {
+      "type": "object",
+      "required": [
+        "title",
+        "description",
+        "price",
+        "location",
+        "bedrooms",
+        "bathrooms",
+        "property_type"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9\\s\\.,']+$",
+          "description": "Property title with allowed characters: letters, numbers, spaces, apostrophes and periods"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 2000,
+          "pattern": "^[a-zA-Z0-9\\s\\.,\\-()&'\":;\\n\\r!?£$€¥\\[\\]]+$",
+          "description": "Property description with allowed characters: letters, numbers, spaces, newlines, common punctuation and currency symbols"
+        },
+        "price": {
+          "type": ["number", "string"],
+          "minimum": 1,
+          "maximum": 1000000000,
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "description": "Property price as a positive number with up to 2 decimal places"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9\\s\\,.']+$",
+          "description": "Property location with allowed characters: letters, numbers, spaces, commas and apostrophes"
+        },
+        "bedrooms": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "maximum": 100,
+          "pattern": "^[1-9]\\d*$",
+          "description": "Number of bedrooms (must be positive whole number)"
+        },
+        "bathrooms": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "maximum": 100,
+          "pattern": "^[1-9]\\d*$",
+          "description": "Number of bathrooms (must be positive whole number)"
+        },
+        "property_type": {
+          "type": "string",
+          "enum": [
+            "Apartment",
+            "House",
+            "Condo",
+            "Townhouse",
+            "Land",
+            "Villa",
+            "Cottage",
+            "Penthouse",
+            "Terraced",
+            "apartment",
+            "house",
+            "condo",
+            "townhouse",
+            "land",
+            "villa",
+            "cottage",
+            "penthouse",
+            "terraced"
+          ],
+          "description": "Type of property from predefined list"
+        },
+        "image_url": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^[a-zA-Z0-9\\._-]+\\.(jpg|jpeg|png|gif|webp)$|^(https?:\\/\\/)?(www\\.)?[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+([\\/\\w\\.-]*)*\\.(jpg|jpeg|png|gif|webp)$",
+          "description": "Image filename with valid format (.jpg, .jpeg, .png, .gif, .webp) or URL pointing to an image with these extensions"
+        },
+        "agent_id": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "pattern": "^\\d+$",
+          "description": "ID of the agent for this property"
+        }
+      },
+      "additionalProperties": false
+    },
+    "propertyUpdate": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9\\s\\.,']+$",
+          "description": "Property title with allowed characters: letters, numbers, spaces, apostrophes and periods"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000,
+          "pattern": "^[a-zA-Z0-9\\s\\.,\\-()&'\":;\\n\\r!?£$€¥\\[\\]]+$",
+          "description": "Property description with allowed characters: letters, numbers, spaces, newlines, common punctuation and currency symbols"
+        },
+        "price": {
+          "type": ["number", "string"],
+          "minimum": 1,
+          "maximum": 1000000000,
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "description": "Property price as a positive number with up to 2 decimal places"
+        },
+        "location": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9\\s\\,.']+$",
+          "description": "Property location with allowed characters: letters, numbers, spaces, commas and apostrophes"
+        },
+        "bedrooms": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "maximum": 100,
+          "pattern": "^[1-9]\\d*$",
+          "description": "Number of bedrooms (must be positive whole number)"
+        },
+        "bathrooms": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "maximum": 100,
+          "pattern": "^[1-9]\\d*$",
+          "description": "Number of bathrooms (must be positive whole number)"
+        },
+        "property_type": {
+          "type": "string",
+          "enum": [
+            "Apartment",
+            "House",
+            "Condo",
+            "Townhouse",
+            "Land",
+            "Villa",
+            "Cottage",
+            "Penthouse",
+            "Terraced",
+            "apartment",
+            "house",
+            "condo",
+            "townhouse",
+            "land",
+            "villa",
+            "cottage",
+            "penthouse",
+            "terraced"
+          ],
+          "description": "Type of property from predefined list"
+        },
+        "image_url": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^[a-zA-Z0-9\\._-]+\\.(jpg|jpeg|png|gif|webp)$|^(https?:\\/\\/)?(www\\.)?[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+([\\/\\w\\.-]*)*\\.(jpg|jpeg|png|gif|webp)$",
+          "description": "Image filename with valid format (.jpg, .jpeg, .png, .gif, .webp) or URL pointing to an image with these extensions"
+        },
+        "agent_id": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "pattern": "^\\d+$",
+          "description": "ID of the agent for this property"
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+    "propertySearch": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9\\s\\.,'-]+$",
+          "description": "Search location with allowed characters: letters, numbers, spaces, and common punctuation like commas, periods, hyphens, and apostrophes"
+        },
+        "minBedrooms": {
+          "type": ["integer", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+$",
+          "description": "Minimum number of bedrooms"
+        },
+        "maxBedrooms": {
+          "type": ["integer", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+$",
+          "description": "Maximum number of bedrooms"
+        },
+        "minBathrooms": {
+          "type": ["integer", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+(\\.5)?$",
+          "description": "Minimum number of bathrooms"
+        },
+        "maxBathrooms": {
+          "type": ["integer", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+(\\.5)?$",
+          "description": "Maximum number of bathrooms"
+        },
+        "minPrice": {
+          "type": ["number", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "description": "Minimum property price"
+        },
+        "maxPrice": {
+          "type": ["number", "string"],
+          "minimum": 0,
+          "pattern": "^\\d+(\\.\\d{1,2})?$",
+          "description": "Maximum property price"
+        },
+        "property_type": {
+          "type": "string",
+          "enum": [
+            "Apartment",
+            "House",
+            "Condo",
+            "Townhouse",
+            "Land",
+            "Villa",
+            "Cottage",
+            "Penthouse",
+            "Terraced",
+            "apartment",
+            "house",
+            "condo",
+            "townhouse",
+            "land",
+            "villa",
+            "cottage",
+            "penthouse",
+            "terraced"
+          ],
+          "description": "Type of property from predefined list"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

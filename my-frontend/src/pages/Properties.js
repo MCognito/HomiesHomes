@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBed,
@@ -10,6 +10,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 import defaultImage from "../assets/prop1.jpg"; // Default fallback image
+import { hasLink, enhanceResourceWithLinks } from "../services/hateoas";
+import API_BASE_URL from "../config/api";
 
 // Import all property images for dynamic loading
 import prop1 from "../assets/prop1.jpg";
@@ -18,8 +20,6 @@ import prop1 from "../assets/prop1.jpg";
 const imageMap = {
   "prop1.jpg": prop1,
 };
-
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
 
 // Price options for dropdown
 const PRICE_OPTIONS = [
@@ -43,12 +43,14 @@ const PROPERTY_TYPES = [
   "Penthouse",
 ];
 
-const Properties = ({ properties, token, userInfo }) => {
+const Properties = ({ properties, token, userInfo, refreshProperties }) => {
   const [favourites, setFavourites] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [isFiltered, setIsFiltered] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState("");
+  const locationPath = useLocation();
 
   // Filter states
   const [location, setLocation] = useState("");
@@ -60,88 +62,110 @@ const Properties = ({ properties, token, userInfo }) => {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // Initialize with all properties
+  // Update filtered properties when main properties change
   useEffect(() => {
     setFilteredProperties(properties);
   }, [properties]);
 
-  // Fetch favorites once on component mount or when token changes
+  // Fetch favorites only
+  const fetchFavorites = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/favourites`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) return;
+
+      const result = await response.json();
+      if (result && result.data) {
+        const favoriteIds = result.data.map((fav) =>
+          parseInt(fav.property_id || fav.id, 10)
+        );
+        setFavourites(favoriteIds);
+      }
+    } catch (error) {
+      console.error("Favorites fetch error:", error);
+    }
+  }, [token]);
+
+  // Initial load of favorites
   useEffect(() => {
-    const fetchFavourites = async () => {
-      if (!token) return;
+    let mounted = true;
 
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_BASE_URL}/favourites`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          console.error(`Error fetching favourites: ${res.status}`);
-          return;
-        }
-
-        const data = await res.json();
-        const favIds = data.data
-          ? data.data.map((p) => p.property_id || p.id)
-          : [];
-        console.log("Fetched favorites:", favIds);
-        setFavourites(favIds);
-      } catch (err) {
-        console.error("Failed to fetch favourites:", err);
-      } finally {
-        setLoading(false);
+    const loadFavorites = async () => {
+      if (token && mounted) {
+        await fetchFavorites();
       }
     };
 
-    fetchFavourites();
-  }, [token]);
+    loadFavorites();
+
+    return () => {
+      mounted = false;
+    };
+  }, [token, fetchFavorites]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setLoading(true);
+    await refreshProperties();
+    if (token) {
+      await fetchFavorites();
+    }
+    setLoading(false);
+  };
 
   const isFavourited = (id) => {
     return favourites.includes(Number(id));
   };
 
-  const toggleFavourite = async (property_id) => {
-    if (!token) {
-      alert("Please log in to add favorites");
-      return;
-    }
+  // Toggle favorite with debounce
+  const toggleFavourite = useCallback(
+    async (property_id) => {
+      if (!token) {
+        alert("Please log in to add favorites");
+        return;
+      }
 
-    const favNow = isFavourited(property_id);
-    console.log(`Toggling favorite for property ${property_id}`);
-
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/favourites${favNow ? `/${property_id}` : ""}`,
-        {
+      try {
+        const favNow = isFavourited(property_id);
+        const options = {
           method: favNow ? "DELETE" : "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          credentials: "include",
-          body: favNow ? undefined : JSON.stringify({ property_id }),
-        }
-      );
+        };
 
-      if (res.ok) {
-        setFavourites((prev) =>
-          favNow
-            ? prev.filter((id) => id !== Number(property_id))
-            : [...prev, Number(property_id)]
-        );
-      } else {
-        console.error(`Failed to toggle favorite: ${res.status}`);
+        if (!favNow) {
+          options.body = JSON.stringify({ property_id });
+        }
+
+        const endpoint = favNow ? `/favourites/${property_id}` : "/favourites";
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+        if (response.ok) {
+          setFavourites((prev) =>
+            favNow
+              ? prev.filter((id) => id !== property_id)
+              : [...prev, property_id]
+          );
+        }
+      } catch (err) {
+        console.error("Favourite toggle failed:", err);
       }
-    } catch (err) {
-      console.error("Favourite toggle failed:", err);
-    }
-  };
+    },
+    [token, isFavourited]
+  );
 
   const handleSearch = async () => {
+    setValidationError(""); // Clear any previous errors
     // Build filter parameters with min/max values
     const filters = {
       location,
@@ -161,24 +185,60 @@ const Properties = ({ properties, token, userInfo }) => {
 
     setLoading(true);
     try {
+      // Add timestamp to make URL unique
+      cleanedFilters._t = Date.now();
+
       // Construct query string
       const query = new URLSearchParams(cleanedFilters).toString();
-      const res = await fetch(`${API_BASE_URL}/properties?${query}`, {
-        credentials: "include",
+      console.log("[FIX] Properties: Searching with query:", query);
+
+      // Direct fetch with no caching
+      const response = await fetch(`${API_BASE_URL}/properties?${query}`, {
+        method: "GET",
         headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
           "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
         },
       });
 
-      const data = await res.json();
+      const data = await response.json();
 
-      if (data.data) {
+      if (!response.ok) {
+        // Handle validation errors
+        if (response.status === 400) {
+          const errorMessage =
+            typeof data.error === "object"
+              ? data.error.message || "Invalid search request"
+              : data.error ||
+                "Invalid search request. Please check your search criteria.";
+          setValidationError(errorMessage);
+          setFilteredProperties([]);
+          setIsFiltered(true);
+          return;
+        }
+        throw new Error(
+          typeof data.message === "string" ? data.message : "Search failed"
+        );
+      }
+
+      if (data && data.data) {
+        console.log(
+          `[FIX] Properties: Search found ${data.data.length} properties`
+        );
         setFilteredProperties(data.data);
         setIsFiltered(true);
+        setValidationError(""); // Clear any errors on success
+        console.log(
+          "[DEBUG] Properties: Updated lastLoadTime after search to",
+          new Date().toISOString()
+        );
       }
-    } catch (err) {
-      console.error("Search failed:", err);
+    } catch (error) {
+      console.error("[FIX] Properties: Search exception:", error);
+      setValidationError(
+        error.message || "An error occurred while searching. Please try again."
+      );
+      setFilteredProperties([]);
     } finally {
       setLoading(false);
     }
@@ -186,7 +246,6 @@ const Properties = ({ properties, token, userInfo }) => {
 
   // Clear filters function
   const clearFilters = () => {
-    setLocation("");
     setMinBedrooms("");
     setMaxBedrooms("");
     setMinBathrooms("");
@@ -195,22 +254,59 @@ const Properties = ({ properties, token, userInfo }) => {
     setMinPrice("");
     setMaxPrice("");
     setIsFiltered(false);
-    setFilteredProperties(properties); // Reset to all properties
+    setLoading(true);
+
+    console.log("[FIX] Properties: Clearing filters, reloading all properties");
+
+    // Reload all properties
+    fetch(`${API_BASE_URL}/properties`, {
+      method: "GET",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((result) => {
+        if (result && result.data) {
+          console.log(
+            `[FIX] Properties: Loaded ${result.data.length} properties after clearing filters`
+          );
+          setFilteredProperties(result.data);
+          console.log(
+            "[DEBUG] Properties: Updated lastLoadTime after clearing filters to",
+            new Date().toISOString()
+          );
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "[FIX] Properties: Error refreshing after clear filters:",
+          error
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   // Properties to display
-  const propertiesToDisplay = isFiltered ? filteredProperties : properties;
+  const propertiesToDisplay = filteredProperties;
 
   // Helper function to get the image source
   const getImageSource = (imageName) => {
     if (!imageName) return defaultImage;
 
-    // If the image name is in our map, use it
     if (imageMap[imageName]) {
       return imageMap[imageName];
     }
 
-    // Otherwise try to construct a path (fallback to default if it fails)
+
     try {
       return require(`../assets/${imageName}`);
     } catch (error) {
@@ -219,9 +315,24 @@ const Properties = ({ properties, token, userInfo }) => {
     }
   };
 
+  // Add handler for HATEOAS links
+  const handleLinkAction = (action) => {
+    console.log("Following HATEOAS link:", action);
+    // Handle link actions as needed
+  };
+
   return (
     <div className="page">
-      <h2>All Properties</h2>
+      <div className="page-header">
+        <h2>All Properties</h2>
+        <button
+          className="refresh-btn"
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          {loading ? "Refreshing..." : "Refresh Properties"}
+        </button>
+      </div>
 
       {/* Search and Filter Section */}
       <div className="properties-search-container">
@@ -238,7 +349,8 @@ const Properties = ({ properties, token, userInfo }) => {
             onClick={handleSearch}
             disabled={loading}
           >
-            <FontAwesomeIcon icon={faSearch} /> Search
+            <FontAwesomeIcon icon={faSearch} />{" "}
+            {loading ? "Searching..." : "Search"}
           </button>
 
           <button
@@ -254,6 +366,10 @@ const Properties = ({ properties, token, userInfo }) => {
             </button>
           )}
         </div>
+
+        {validationError && (
+          <div className="error-message">{validationError}</div>
+        )}
 
         {/* Filter Section - Updated UI */}
         {showFilters && (
@@ -380,54 +496,97 @@ const Properties = ({ properties, token, userInfo }) => {
       {loading ? (
         <p className="loading-message">Loading properties...</p>
       ) : propertiesToDisplay.length === 0 ? (
-        <p className="no-results">No properties matching your criteria.</p>
+        <div className="no-results">
+          <p>
+            No properties found. The database may be empty or there may be a
+            connection issue.
+          </p>
+          <button
+            className="browse-all-btn"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            Reload Properties
+          </button>
+          {isFiltered && (
+            <button className="browse-all-btn" onClick={clearFilters}>
+              Clear Filters
+            </button>
+          )}
+        </div>
       ) : (
         <div className="property-grid">
-          {propertiesToDisplay.map((p) => (
-            <div className="property-card" key={p.id}>
-              <img
-                src={getImageSource(p.image_url)}
-                alt={p.title}
-                className="property-image"
-              />
+          {propertiesToDisplay.map((property) => {
+            // Get consistent numeric ID
+            const propertyId = parseInt(
+              property.id || property.property_id,
+              10
+            );
 
-              <div className="property-details">
-                <div className="property-header">
-                  <h3>{p.title}</h3>
-                  {token && (
-                    <FontAwesomeIcon
-                      icon={isFavourited(p.id) ? faSolidHeart : faRegularHeart}
-                      className={`heart-icon ${
-                        isFavourited(p.id) ? "favourited" : ""
-                      }`}
-                      onClick={() => toggleFavourite(p.id)}
-                    />
-                  )}
-                </div>
+            return (
+              <div className="property-card" key={propertyId}>
+                <img
+                  src={getImageSource(property.image_url)}
+                  alt={property.title || "Property"}
+                  className="property-image"
+                  onError={(e) => {
+                    console.warn("Image failed to load:", property.image_url);
+                    e.target.src = defaultImage; // Fallback to default image
+                  }}
+                />
 
-                <p className="property-location">{p.location}</p>
-                <p>
-                  <strong>£{parseFloat(p.price).toLocaleString()}</strong>
-                </p>
-                <p>
-                  <FontAwesomeIcon icon={faBed} /> {p.bedrooms}{" "}
-                  <FontAwesomeIcon icon={faBath} /> {p.bathrooms}
-                </p>
-                <p className="property-type">{p.property_type}</p>
+                <div className="property-details">
+                  <div className="property-header">
+                    <h3>{property.title || "Unnamed Property"}</h3>
+                    {token && (
+                      <FontAwesomeIcon
+                        icon={
+                          isFavourited(propertyId)
+                            ? faSolidHeart
+                            : faRegularHeart
+                        }
+                        className={`heart-icon ${
+                          isFavourited(propertyId) ? "favourited" : ""
+                        }`}
+                        onClick={() => toggleFavourite(propertyId)}
+                      />
+                    )}
+                  </div>
 
-                {/* Agent information */}
-                {p.agent && (
-                  <p className="property-agent">
-                    Agent: {p.agent.firstName} {p.agent.lastName}
+                  <p className="property-location">
+                    {property.location || "Location not specified"}
                   </p>
-                )}
+                  <p>
+                    <strong>
+                      £{parseFloat(property.price || 0).toLocaleString()}
+                    </strong>
+                  </p>
+                  <div className="property-features">
+                    <span>
+                      <FontAwesomeIcon icon={faBed} /> {property.bedrooms || 0}
+                    </span>
+                    <span>
+                      <FontAwesomeIcon icon={faBath} />{" "}
+                      {property.bathrooms || 0}
+                    </span>
+                    <span>{property.property_type || "Not specified"}</span>
+                  </div>
 
-                <Link to={`/property/${p.id}`} className="details-link">
-                  View Details
-                </Link>
+                  {/* Agent information */}
+                  {property.agent && (
+                    <p className="property-agent">
+                      Agent: {property.agent.firstName || ""}{" "}
+                      {property.agent.lastName || ""}
+                    </p>
+                  )}
+
+                  <Link to={`/property/${propertyId}`} className="details-link">
+                    View Details
+                  </Link>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

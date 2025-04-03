@@ -1,3 +1,7 @@
+/**
+ * Home Page
+ * The main landing page with search and featured properties
+ */
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,17 +15,17 @@ import {
 import { faHeart as faRegularHeart } from "@fortawesome/free-regular-svg-icons";
 import defaultImage from "../assets/prop1.jpg";
 
-// Import all property images for dynamic loading
+// Load property images to use them dynamically
 import prop1 from "../assets/prop1.jpg";
 
-// Create an image map for easier access
+// Quick lookup for property images by filename
 const imageMap = {
   "prop1.jpg": prop1,
 };
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+const API_BASE_URL = "https://gammacairo-deltareward-3000.codio-box.uk";
 
-// Price options for dropdown
+// Price choices for the dropdown menu
 const PRICE_OPTIONS = [
   { value: "", label: "Any" },
   { value: "50000", label: "£50,000" },
@@ -34,7 +38,7 @@ const PRICE_OPTIONS = [
   { value: "2000000", label: "£2,000,000" },
 ];
 
-// Property type options
+// Types of properties users can select
 const PROPERTY_TYPES = [
   "Apartment",
   "Terraced",
@@ -43,12 +47,15 @@ const PROPERTY_TYPES = [
   "Penthouse",
 ];
 
+/**
+ * Home page component with search and featured listings
+ */
 const Home = ({ onSearch, userInfo, token }) => {
   const [location, setLocation] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Updated filter states with min/max
+  // Search filters for finding properties
   const [minBedrooms, setMinBedrooms] = useState("");
   const [maxBedrooms, setMaxBedrooms] = useState("");
   const [minBathrooms, setMinBathrooms] = useState("");
@@ -57,13 +64,36 @@ const Home = ({ onSearch, userInfo, token }) => {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
-  // Property states
+  // Properties to display on the page
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [isFiltered, setIsFiltered] = useState(false);
   const [favourites, setFavourites] = useState([]);
+  const [validationError, setValidationError] = useState("");
+  const [searchUrl, setSearchUrl] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch first 3 properties when component mounts
+  // Keep all search filters in one place
+  const [filters, setFilters] = useState({
+    location: "",
+    minBedrooms: "",
+    maxBedrooms: "",
+    minBathrooms: "",
+    maxBathrooms: "",
+    property_type: "",
+    minPrice: "",
+    maxPrice: "",
+  });
+
+  // Update a single filter when user changes value
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // Show properties when the page first loads
   useEffect(() => {
     const fetchFeaturedProperties = async () => {
       setLoading(true);
@@ -88,9 +118,9 @@ const Home = ({ onSearch, userInfo, token }) => {
     };
 
     fetchFeaturedProperties();
-  }, [token]); // Only re-fetch when token changes
+  }, [token]); // Refresh when user logs in or out
 
-  // Fetch user's favourites if logged in - only once on mount or when token changes
+  // Get the user's favorite properties if they're logged in
   useEffect(() => {
     const fetchFavourites = async () => {
       if (!token) return;
@@ -121,50 +151,51 @@ const Home = ({ onSearch, userInfo, token }) => {
     if (token) fetchFavourites();
   }, [token]);
 
-  const handleSearch = async () => {
-    // Build filter parameters with min/max values
-    const filters = {
-      location,
-      minBedrooms,
-      maxBedrooms,
-      minBathrooms,
-      maxBathrooms,
-      propertyType,
-      minPrice,
-      maxPrice,
-    };
+  // Process the search form when submitted
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setValidationError("");
 
-    // Remove empty values
-    const cleanedFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v !== "")
-    );
+    // Create the search query from all the filters
+    const queryParams = new URLSearchParams();
 
-    setLoading(true);
-    try {
-      // Construct query string
-      const query = new URLSearchParams(cleanedFilters).toString();
-      const res = await fetch(`${API_BASE_URL}/properties?${query}`, {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-      });
-
-      const data = await res.json();
-
-      if (data.data) {
-        setFilteredProperties(data.data);
-        setIsFiltered(true);
-      }
-    } catch (err) {
-      console.error("Search failed:", err);
-    } finally {
-      setLoading(false);
+    // Only add filters that have values
+    if (filters.location) {
+      queryParams.append("location", filters.location);
     }
 
-    // Also notify App.js about the search (for other components)
-    onSearch(cleanedFilters);
+    if (filters.minBedrooms) {
+      queryParams.append("minBedrooms", filters.minBedrooms);
+    }
+    if (filters.maxBedrooms) {
+      queryParams.append("maxBedrooms", filters.maxBedrooms);
+    }
+
+    if (filters.minBathrooms) {
+      queryParams.append("minBathrooms", filters.minBathrooms);
+    }
+    if (filters.maxBathrooms) {
+      queryParams.append("maxBathrooms", filters.maxBathrooms);
+    }
+
+    if (filters.property_type) {
+      queryParams.append("property_type", filters.property_type);
+    }
+
+    if (filters.minPrice) {
+      queryParams.append("minPrice", filters.minPrice);
+    }
+    if (filters.maxPrice) {
+      queryParams.append("maxPrice", filters.maxPrice);
+    }
+
+    queryParams.append("_t", Date.now());
+
+    // Build the final URL for the search
+    const url = `${API_BASE_URL}/properties?${queryParams.toString()}`;
+
+    setSearchUrl(url);
+    setIsLoading(true);
   };
 
   // Helper function to handle favoriting
@@ -210,16 +241,19 @@ const Home = ({ onSearch, userInfo, token }) => {
 
   // Clear filters function
   const clearFilters = () => {
-    setLocation("");
-    setMinBedrooms("");
-    setMaxBedrooms("");
-    setMinBathrooms("");
-    setMaxBathrooms("");
-    setPropertyType("");
-    setMinPrice("");
-    setMaxPrice("");
+    setFilters({
+      location: "",
+      minBedrooms: "",
+      maxBedrooms: "",
+      minBathrooms: "",
+      maxBathrooms: "",
+      property_type: "",
+      minPrice: "",
+      maxPrice: "",
+    });
     setIsFiltered(false);
     setFilteredProperties([]);
+    setValidationError("");
   };
 
   // Helper function to get the image source
@@ -245,6 +279,59 @@ const Home = ({ onSearch, userInfo, token }) => {
     ? filteredProperties
     : featuredProperties;
 
+  // Fetch properties when searchUrl changes
+  useEffect(() => {
+    if (!searchUrl) return;
+
+    const fetchFilteredProperties = async () => {
+      try {
+        const res = await fetch(searchUrl, {
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          // Handle validation errors
+          if (res.status === 400) {
+            const errorMessage =
+              typeof data.error === "object"
+                ? data.error.message || "Invalid search request"
+                : data.error ||
+                  "Invalid search request. Please check your search criteria.";
+            setValidationError(errorMessage);
+            setFilteredProperties([]);
+            setIsFiltered(true);
+            return;
+          }
+          throw new Error(
+            typeof data.message === "string" ? data.message : "Search failed"
+          );
+        }
+
+        if (data.data) {
+          setFilteredProperties(data.data);
+          setIsFiltered(true);
+          setValidationError(""); // Clear any previous errors on success
+        }
+      } catch (err) {
+        console.error("Search failed:", err);
+        setValidationError(
+          err.message || "An error occurred while searching. Please try again."
+        );
+        setFilteredProperties([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFilteredProperties();
+  }, [searchUrl, token]);
+
   return (
     <>
       <div className="hero">
@@ -260,16 +347,17 @@ const Home = ({ onSearch, userInfo, token }) => {
             <input
               type="text"
               placeholder="Search Location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              value={filters.location}
+              onChange={(e) => handleFilterChange("location", e.target.value)}
             />
 
             <button
-              className="search-btn"
+              className={`search-btn ${isLoading ? "loading" : ""}`}
               onClick={handleSearch}
-              disabled={loading}
+              disabled={isLoading}
             >
-              <FontAwesomeIcon icon={faSearch} /> Search
+              <FontAwesomeIcon icon={faSearch} />{" "}
+              {isLoading ? "Searching..." : "Search"}
             </button>
 
             <button
@@ -286,6 +374,10 @@ const Home = ({ onSearch, userInfo, token }) => {
             )}
           </div>
 
+          {validationError && (
+            <div className="error-message">{validationError}</div>
+          )}
+
           {/* Filter Section - Updated with Min/Max UI */}
           {showFilters && (
             <div className="filters-panel">
@@ -295,8 +387,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                   <label>Bedrooms</label>
                   <div className="range-input">
                     <select
-                      value={minBedrooms}
-                      onChange={(e) => setMinBedrooms(e.target.value)}
+                      value={filters.minBedrooms}
+                      onChange={(e) =>
+                        handleFilterChange("minBedrooms", e.target.value)
+                      }
                     >
                       <option value="">Min</option>
                       <option value="1">1</option>
@@ -307,8 +401,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                     </select>
                     <span>to</span>
                     <select
-                      value={maxBedrooms}
-                      onChange={(e) => setMaxBedrooms(e.target.value)}
+                      value={filters.maxBedrooms}
+                      onChange={(e) =>
+                        handleFilterChange("maxBedrooms", e.target.value)
+                      }
                     >
                       <option value="">Max</option>
                       <option value="1">1</option>
@@ -328,8 +424,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                   <label>Bathrooms</label>
                   <div className="range-input">
                     <select
-                      value={minBathrooms}
-                      onChange={(e) => setMinBathrooms(e.target.value)}
+                      value={filters.minBathrooms}
+                      onChange={(e) =>
+                        handleFilterChange("minBathrooms", e.target.value)
+                      }
                     >
                       <option value="">Min</option>
                       <option value="1">1</option>
@@ -339,8 +437,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                     </select>
                     <span>to</span>
                     <select
-                      value={maxBathrooms}
-                      onChange={(e) => setMaxBathrooms(e.target.value)}
+                      value={filters.maxBathrooms}
+                      onChange={(e) =>
+                        handleFilterChange("maxBathrooms", e.target.value)
+                      }
                     >
                       <option value="">Max</option>
                       <option value="1">1</option>
@@ -358,8 +458,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                 <div className="filter-group">
                   <label>Property Type</label>
                   <select
-                    value={propertyType}
-                    onChange={(e) => setPropertyType(e.target.value)}
+                    value={filters.property_type}
+                    onChange={(e) =>
+                      handleFilterChange("property_type", e.target.value)
+                    }
                     className="filter-select"
                   >
                     <option value="">Any</option>
@@ -378,8 +480,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                   <label>Price Range</label>
                   <div className="range-input">
                     <select
-                      value={minPrice}
-                      onChange={(e) => setMinPrice(e.target.value)}
+                      value={filters.minPrice}
+                      onChange={(e) =>
+                        handleFilterChange("minPrice", e.target.value)
+                      }
                     >
                       <option value="">Min</option>
                       {PRICE_OPTIONS.slice(1).map((option) => (
@@ -393,8 +497,10 @@ const Home = ({ onSearch, userInfo, token }) => {
                     </select>
                     <span>to</span>
                     <select
-                      value={maxPrice}
-                      onChange={(e) => setMaxPrice(e.target.value)}
+                      value={filters.maxPrice}
+                      onChange={(e) =>
+                        handleFilterChange("maxPrice", e.target.value)
+                      }
                     >
                       <option value="">Max</option>
                       {PRICE_OPTIONS.slice(1).map((option) => (

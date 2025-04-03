@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Favourites Schema",
+  "description": "Schema for validating favourite resources",
+  "type": "object",
+  "definitions": {
+    "favourite": {
+      "type": "object",
+      "required": ["property_id"],
+      "properties": {
+        "property_id": {
+          "type": ["integer", "string"],
+          "minimum": 1,
+          "pattern": "^\\d+$",
+          "description": "ID of the property to favourite - must be a positive integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

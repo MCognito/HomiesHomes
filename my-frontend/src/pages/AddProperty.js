@@ -3,26 +3,25 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "../styles/AddProperty.css";
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+const API_BASE_URL = "https://gammacairo-deltareward-3000.codio-box.uk";
 
 // Default image to use if none provided
 const DEFAULT_IMAGE = "prop1.jpg";
 
-// Property types allowed
+// Property types allowed - match backend schema capitalization exactly
 const PROPERTY_TYPES = [
-  "house",
-  "apartment",
-  "condo",
-  "townhouse",
-  "land",
   "Apartment",
-  "Terraced",
-  "Cottage",
+  "House",
+  "Condo",
+  "Townhouse",
+  "Land",
   "Villa",
+  "Cottage",
   "Penthouse",
+  "Terraced",
 ];
 
-const AddProperty = ({ token, userInfo, isEditing }) => {
+const AddProperty = ({ token, userInfo, isEditing, onPropertyUpdate }) => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [formData, setFormData] = useState({
@@ -32,7 +31,7 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
     location: "",
     bedrooms: "",
     bathrooms: "",
-    property_type: "house",
+    property_type: "House",
     image_url: DEFAULT_IMAGE,
     agent_id: userInfo?.user_id || "",
   });
@@ -60,10 +59,10 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
           const propertyData = await response.json();
           const property = propertyData.data;
 
-          // Check if the current user is the agent of this property
+          // Check if the current user is the agent of this property or an admin
           if (
             property.agent_id !== userInfo.user_id &&
-            userInfo.user_level < 2
+            userInfo.user_levels < 2
           ) {
             setError("You don't have permission to edit this property");
             setIsLoading(false);
@@ -77,7 +76,7 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
             location: property.location || "",
             bedrooms: property.bedrooms || "",
             bathrooms: property.bathrooms || "",
-            property_type: property.property_type || "house",
+            property_type: property.property_type || "House",
             image_url: property.image_url || DEFAULT_IMAGE,
             agent_id: property.agent_id || userInfo.user_id,
           });
@@ -114,24 +113,27 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
   const validateForm = () => {
     const errors = {};
 
-    // Validate title (prevent XSS)
+    // Validate title
     if (!formData.title.trim()) {
       errors.title = "Title is required";
     } else if (formData.title.length > 100) {
       errors.title = "Title must be less than 100 characters";
-    } else if (/[<>&;]|&amp;|&lt;|&gt;/.test(formData.title)) {
+    } else if (!/^[a-zA-Z0-9\s\.,']+$/.test(formData.title)) {
       errors.title =
-        "Title cannot contain special characters like <, >, &, or ;";
-    } else if (!/^[a-zA-Z0-9\s.,!?'"-]+$/.test(formData.title)) {
-      errors.title =
-        "Title can only contain letters, numbers, spaces, and basic punctuation";
+        "Title can only contain letters, numbers, spaces, apostrophes (') and periods (.)";
     }
 
-    // Validate description (prevent XSS)
+    // Validate description
     if (!formData.description.trim()) {
       errors.description = "Description is required";
-    } else if (formData.description.length > 1000) {
-      errors.description = "Description must be less than 1000 characters";
+    } else if (formData.description.length < 20) {
+      errors.description = "Description must be at least 20 characters long";
+    } else if (formData.description.length > 2000) {
+      errors.description = "Description must be less than 2000 characters";
+    } else if (
+      !/^[a-zA-Z0-9\s\.,\-()&'":;\n\r!?£$€¥\[\]]+$/.test(formData.description)
+    ) {
+      errors.description = "Description contains invalid characters";
     }
 
     // Validate price
@@ -139,15 +141,20 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
       errors.price = "Price is required";
     } else if (isNaN(formData.price) || parseFloat(formData.price) <= 0) {
       errors.price = "Price must be a positive number";
-    } else if (parseFloat(formData.price) > 100000000) {
-      errors.price = "Price is too high";
+    } else if (parseFloat(formData.price) > 1000000000) {
+      errors.price = "Price is too high (maximum 1 billion)";
+    } else if (!/^\d+(\.\d{1,2})?$/.test(formData.price)) {
+      errors.price = "Price can have up to 2 decimal places";
     }
 
     // Validate location
     if (!formData.location.trim()) {
       errors.location = "Location is required";
-    } else if (formData.location.length > 100) {
-      errors.location = "Location must be less than 100 characters";
+    } else if (formData.location.length > 255) {
+      errors.location = "Location must be less than 255 characters";
+    } else if (!/^[a-zA-Z0-9\s\,.']+$/.test(formData.location)) {
+      errors.location =
+        "Location can only contain letters, numbers, spaces, commas (,) and apostrophes (')";
     }
 
     // Validate bedrooms
@@ -159,8 +166,8 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
       parseInt(formData.bedrooms) <= 0
     ) {
       errors.bedrooms = "Bedrooms must be a positive whole number";
-    } else if (parseInt(formData.bedrooms) > 50) {
-      errors.bedrooms = "Number of bedrooms is too high";
+    } else if (parseInt(formData.bedrooms) > 100) {
+      errors.bedrooms = "Number of bedrooms is too high (maximum 100)";
     }
 
     // Validate bathrooms
@@ -172,8 +179,8 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
       parseInt(formData.bathrooms) <= 0
     ) {
       errors.bathrooms = "Bathrooms must be a positive whole number";
-    } else if (parseInt(formData.bathrooms) > 50) {
-      errors.bathrooms = "Number of bathrooms is too high";
+    } else if (parseInt(formData.bathrooms) > 100) {
+      errors.bathrooms = "Number of bathrooms is too high (maximum 100)";
     }
 
     // Validate property type
@@ -181,6 +188,17 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
       errors.property_type = "Property type is required";
     } else if (!PROPERTY_TYPES.includes(formData.property_type)) {
       errors.property_type = "Invalid property type";
+    }
+
+    // Validate image URL if provided
+    if (formData.image_url && formData.image_url !== DEFAULT_IMAGE) {
+      // Check if it's a local file name or URL with a valid image extension
+      const validImageRegex =
+        /^[a-zA-Z0-9\._-]+\.(jpg|jpeg|png|gif|webp)$|^(https?:\/\/)?(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+([\\/\w\.-]*)*\.(jpg|jpeg|png|gif|webp)$/i;
+      if (!validImageRegex.test(formData.image_url)) {
+        errors.image_url =
+          "Image URL must end with a valid format (.jpg, .jpeg, .png, .gif, .webp)";
+      }
     }
 
     // Set validation errors
@@ -198,27 +216,47 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
     for (const [key, value] of Object.entries(data)) {
       if (typeof value === "string") {
         // Different sanitization based on field type
-        if (key === "title" || key === "location") {
-          // For title and location, only allow alphanumeric chars and basic punctuation
+        if (key === "title") {
+          // For title, only allow letters, numbers, spaces, apostrophes, and periods
           sanitized[key] = value
             .trim()
-            .replace(/[^a-zA-Z0-9\s.,!?'"-]/g, "")
-            .substring(0, key === "title" ? 100 : 100);
+            .replace(/[^a-zA-Z0-9\s\.,']/g, "")
+            .substring(0, 255);
+        } else if (key === "location") {
+          // For location, only allow letters, numbers, spaces, commas, and apostrophes
+          sanitized[key] = value
+            .trim()
+            .replace(/[^a-zA-Z0-9\s\,.']/g, "")
+            .substring(0, 255);
         } else if (key === "description") {
-          // For description, allow more characters but still sanitize HTML
-          sanitized[key] = value
-            .trim()
-            .replace(/</g, "")
-            .replace(/>/g, "")
-            .replace(/&/g, "")
-            .replace(/;/g, "")
-            .substring(0, 1000);
+          // For description, allow more characters but still sanitize
+          const trimmed = value.trim();
+          if (trimmed.length < 20) {
+            // If description is too short, keep original
+            sanitized[key] = trimmed;
+          } else {
+            // Allow letters, numbers, spaces, common punctuation, and currency symbols
+            sanitized[key] = trimmed
+              .replace(/[^a-zA-Z0-9\s\.,\-()&'":;\n\r!?£$€¥\[\]]/g, "")
+              .substring(0, 2000);
+          }
         } else if (key === "image_url") {
-          // For image URL, just trim and limit length
-          sanitized[key] = value.trim() || DEFAULT_IMAGE;
+          // For image URL, just trim and use default if empty
+          const trimmed = value.trim();
+          if (!trimmed) {
+            sanitized[key] = DEFAULT_IMAGE;
+          } else {
+            // Check if it has a valid image extension
+            const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+            const hasValidExtension = validExtensions.some((ext) =>
+              trimmed.toLowerCase().endsWith(ext)
+            );
+
+            sanitized[key] = hasValidExtension ? trimmed : DEFAULT_IMAGE;
+          }
         } else if (key === "property_type") {
           // For property type, ensure it's one of the allowed values
-          sanitized[key] = PROPERTY_TYPES.includes(value) ? value : "house";
+          sanitized[key] = PROPERTY_TYPES.includes(value) ? value : "House";
         } else {
           // Basic sanitization for other string fields - trim
           sanitized[key] = value.trim();
@@ -228,25 +266,34 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
       }
     }
 
-    // Convert numeric fields
+    // Sanitize price as positive number with max 2 decimal places
     if (sanitized.price) {
       const price = parseFloat(sanitized.price);
-      sanitized.price = isNaN(price) || price <= 0 ? 1 : price;
+      if (isNaN(price) || price <= 0) {
+        sanitized.price = 1;
+      } else if (price > 1000000000) {
+        sanitized.price = 1000000000;
+      } else {
+        // Ensure price has max 2 decimal places
+        sanitized.price = Math.round(price * 100) / 100;
+      }
     }
 
+    // Sanitize bedrooms as positive integer
     if (sanitized.bedrooms) {
       const bedrooms = parseInt(sanitized.bedrooms, 10);
       sanitized.bedrooms =
-        isNaN(bedrooms) || bedrooms <= 0 ? 1 : bedrooms > 50 ? 50 : bedrooms;
+        isNaN(bedrooms) || bedrooms <= 0 ? 1 : bedrooms > 100 ? 100 : bedrooms;
     }
 
+    // Sanitize bathrooms as positive integer
     if (sanitized.bathrooms) {
       const bathrooms = parseInt(sanitized.bathrooms, 10);
       sanitized.bathrooms =
         isNaN(bathrooms) || bathrooms <= 0
           ? 1
-          : bathrooms > 50
-          ? 50
+          : bathrooms > 100
+          ? 100
           : bathrooms;
     }
 
@@ -255,66 +302,110 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
+    setError(""); // Clear previous errors
+    setSuccess(""); // Clear previous success messages
 
-    // Validate form
+    // Validate form before submission
     if (!validateForm()) {
-      setIsLoading(false);
-      setError("Please correct the errors in the form");
       return;
     }
 
+    // Prevent non-agents from adding properties
+    if (userInfo.user_levels < 1 && !isEditing) {
+      setError("Only agents can add properties");
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      // Sanitize and prepare the request data
-      const sanitizedData = sanitizeInputs(formData);
-
-      // If image_url is empty, use the default
-      if (!sanitizedData.image_url) {
-        sanitizedData.image_url = DEFAULT_IMAGE;
-      }
-
-      const url = isEditing
+      const endpoint = isEditing
         ? `${API_BASE_URL}/properties/${id}`
         : `${API_BASE_URL}/properties`;
-
       const method = isEditing ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method: method,
+      // Clean the form data
+      const cleanedData = {
+        ...formData,
+        price: parseFloat(formData.price),
+        bedrooms: parseInt(formData.bedrooms),
+        bathrooms: parseInt(formData.bathrooms),
+      };
+
+      // Sanitize to prevent XSS
+      const sanitizedData = sanitizeInputs(cleanedData);
+
+      const response = await fetch(endpoint, {
+        method,
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(sanitizedData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save property");
+      // Check for JSON parse errors in case of invalid response
+      let responseData;
+      try {
+        const jsonText = await response.text();
+        responseData = JSON.parse(jsonText);
+      } catch (error) {
+        console.error("Error parsing response:", error);
+        throw new Error("Invalid server response");
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        // Handle validation errors from backend
+        if (response.status === 400 && responseData.errors) {
+          // Format backend errors to match our validation structure
+          const backendErrors = {};
+
+          Object.entries(responseData.errors).forEach(([field, message]) => {
+            backendErrors[field] = message;
+          });
+
+          setValidationErrors(backendErrors);
+          throw new Error(responseData.message || "Validation failed");
+        }
+
+        throw new Error(responseData.message || "Failed to save property");
+      }
+
+      // Get the property ID from the response or use the existing ID for editing
+      const propertyId = isEditing
+        ? id
+        : responseData.property_id || responseData.id || responseData.data?.id;
+
+      if (!propertyId) {
+        console.error("No property ID in response:", responseData);
+        throw new Error("Failed to get property ID from response");
+      }
+
+      // Show success message
       setSuccess(
         isEditing
           ? "Property updated successfully!"
-          : "Property added successfully!"
+          : "Property created successfully!"
       );
 
-      // Redirect after successful submission
+      // If parent passed a callback, call it
+      if (onPropertyUpdate) {
+        onPropertyUpdate();
+      }
+
+      // Wait 2 seconds before redirecting
       setTimeout(() => {
-        navigate(isEditing ? `/property/${id}` : "/properties");
+        navigate(`/property/${propertyId}`);
       }, 2000);
     } catch (error) {
-      console.error("Error:", error);
-      setError(error.message || "Something went wrong. Please try again.");
+      console.error("Error saving property:", error);
+      setError(error.message || "Error saving property. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!token || (userInfo && userInfo.user_level < 1)) {
+  if (!token || (userInfo && userInfo.user_levels < 1)) {
     return (
       <div className="add-property-container">
         You don't have permission to access this page.
@@ -357,7 +448,7 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
             onChange={handleInputChange}
             placeholder="Describe the property"
             required
-            maxLength={1000}
+            maxLength={2000}
             className={validationErrors.description ? "input-error" : ""}
           />
           {validationErrors.description && (
@@ -395,7 +486,7 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
               onChange={handleInputChange}
               placeholder="Enter location"
               required
-              maxLength={100}
+              maxLength={255}
               className={validationErrors.location ? "input-error" : ""}
             />
             {validationErrors.location && (
@@ -455,15 +546,15 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
             className={validationErrors.property_type ? "input-error" : ""}
           >
             <option value="">Select property type</option>
-            <option value="house">House</option>
-            <option value="apartment">Apartment</option>
-            <option value="condo">Condo</option>
-            <option value="townhouse">Townhouse</option>
-            <option value="land">Land</option>
-            <option value="Terraced">Terraced</option>
-            <option value="Cottage">Cottage</option>
+            <option value="House">House</option>
+            <option value="Apartment">Apartment</option>
+            <option value="Condo">Condo</option>
+            <option value="Townhouse">Townhouse</option>
+            <option value="Land">Land</option>
             <option value="Villa">Villa</option>
+            <option value="Cottage">Cottage</option>
             <option value="Penthouse">Penthouse</option>
+            <option value="Terraced">Terraced</option>
           </select>
           {validationErrors.property_type && (
             <span className="error-text">{validationErrors.property_type}</span>
@@ -479,9 +570,14 @@ const AddProperty = ({ token, userInfo, isEditing }) => {
             value={formData.image_url}
             onChange={handleInputChange}
             placeholder="Enter image URL or use prop1.jpg"
+            className={validationErrors.image_url ? "input-error" : ""}
           />
+          {validationErrors.image_url && (
+            <span className="error-text">{validationErrors.image_url}</span>
+          )}
           <div className="helper-text">
-            Use 'prop1.jpg' if you don't have an image URL
+            Use 'prop1.jpg' if you don't have an image URL. Image must be in
+            .jpg, .jpeg, .png, .gif, or .webp format.
           </div>
         </div>
 

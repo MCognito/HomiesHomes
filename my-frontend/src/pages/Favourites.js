@@ -1,26 +1,59 @@
 // src/pages/Favourites.js
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faHeart as faSolidHeart,
   faBed,
   faBath,
-  faTriangleExclamation,
+  faHeart as faSolidHeart,
+  faHome,
 } from "@fortawesome/free-solid-svg-icons";
-import { Link } from "react-router-dom";
-import defaultImage from "../assets/prop1.jpg"; // Default fallback image
+import defaultImage from "../assets/prop1.jpg";
+import { hasLink, enhanceResourceWithLinks } from "../services/hateoas";
+import API_BASE_URL from "../config/api";
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+// Import all property images for dynamic loading
+import prop1 from "../assets/prop1.jpg";
+
+// Create an image map for easier access
+const imageMap = {
+  "prop1.jpg": prop1,
+};
 
 const Favourites = ({ token }) => {
   const [favourites, setFavourites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retries, setRetries] = useState(0);
 
-  const fetchFavourites = async () => {
+  // Helper function to get the image source
+  const getImageSource = (imageName) => {
+    if (!imageName) {
+      console.log("No image name provided, using default");
+      return defaultImage;
+    }
+
+    // If the image name is in our map, use it
+    if (imageMap[imageName]) {
+      return imageMap[imageName];
+    }
+
+    // Otherwise try to construct a path (fallback to default if it fails)
+    try {
+      console.log(`Trying to load image: ${imageName}`);
+      return require(`../assets/${imageName}`);
+    } catch (error) {
+      console.warn(`Image not found: ${imageName}`, error);
+      return defaultImage;
+    }
+  };
+
+  // Function to fetch favorites
+  const fetchFavorites = async () => {
     if (!token) {
+      console.error("Token not available for fetching favorites");
+      setError("Please log in to view your favourites");
       setLoading(false);
-      setError("Please log in to view your favorites");
       return;
     }
 
@@ -28,53 +61,122 @@ const Favourites = ({ token }) => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/favourites`, {
+      console.log("[DEBUG] Favourites: Fetching favourites data...");
+
+      const response = await fetch(`${API_BASE_URL}/favourites`, {
+        method: "GET",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         credentials: "include",
+        cache: "no-store", // Ensure fresh data
       });
 
-      if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.error("[DEBUG] Favourites: Authorization failed (401)");
+          setError("Your session has expired. Please log in again.");
+        } else {
+          console.error(`[DEBUG] Favourites: Error status ${response.status}`);
+          setError("Failed to load your favourites. Please try again.");
+        }
+        setLoading(false);
+        return;
       }
 
-      const data = await res.json();
-      setFavourites(data.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching favourites:", err);
-      setError("Failed to fetch favorites. Please try again later.");
+      const data = await response.json();
+
+      console.log(
+        `[DEBUG] Favourites: Successfully fetched ${
+          data.data ? data.data.length : 0
+        } favourites`
+      );
+
+      if (data && data.data && Array.isArray(data.data)) {
+        console.log("[DEBUG] Favourites: Setting favourites data", data.data);
+        setFavourites(data.data);
+      } else {
+        console.warn(
+          "[DEBUG] Favourites: Unexpected API response format",
+          data
+        );
+        setFavourites([]);
+      }
+    } catch (error) {
+      console.error("[DEBUG] Favourites: Error during fetch", error);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchFavourites();
-  }, [token]);
+  // Function to remove a favorite
+  const removeFavourite = async (propertyId) => {
+    if (!token) {
+      console.error("Token not available for removing favorite");
+      return;
+    }
 
-  const removeFavourite = async (property_id) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/favourites/${property_id}`, {
+      console.log(
+        `[DEBUG] Favourites: Removing property ${propertyId} from favourites`
+      );
+
+      const response = await fetch(`${API_BASE_URL}/favourites/${propertyId}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       });
 
-      if (res.ok) {
-        setFavourites((prev) => prev.filter((p) => p.id !== property_id));
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        console.error("Error removing favourite:", errorData);
-        alert("Failed to remove this property from favorites");
+      if (!response.ok) {
+        console.error(
+          `[DEBUG] Favourites: Failed to remove favourite: ${response.status}`
+        );
+        return;
       }
-    } catch (err) {
-      console.error("Error removing favourite:", err);
-      alert("Failed to remove this property from favorites");
+
+      console.log(
+        `[DEBUG] Favourites: Successfully removed property ${propertyId}`
+      );
+
+      // Update local state immediately
+      setFavourites(
+        favourites.filter((p) => {
+          const favId = parseInt(p.property_id || p.id, 10);
+          return favId !== parseInt(propertyId, 10);
+        })
+      );
+
+      // Refresh favorites list after a short delay
+      setTimeout(() => {
+        fetchFavorites();
+      }, 100);
+    } catch (error) {
+      console.error("[DEBUG] Favourites: Error removing favourite:", error);
     }
+  };
+
+  // Use useEffect for initial fetch and to retry when token changes
+  useEffect(() => {
+    console.log(
+      "[DEBUG] Favourites: Component mounted or token/retries changed"
+    );
+    if (token) {
+      console.log("[DEBUG] Favourites: Token is present, will fetch data");
+      fetchFavorites();
+    } else {
+      console.log("[DEBUG] Favourites: No token available, won't fetch");
+    }
+  }, [token, retries]);
+
+  // Add a retry button function
+  const handleRetry = () => {
+    console.log("[DEBUG] Favourites: Manually retrying fetch...");
+    setRetries((prev) => prev + 1);
   };
 
   return (
@@ -85,51 +187,67 @@ const Favourites = ({ token }) => {
         <p className="loading-message">Loading your favourite properties...</p>
       ) : error ? (
         <div className="error-container">
-          <FontAwesomeIcon
-            icon={faTriangleExclamation}
-            className="error-icon"
-          />
+          <FontAwesomeIcon icon={faHome} className="error-icon" />
           <p className="error-message">{error}</p>
+          <button onClick={handleRetry} className="retry-button">
+            <FontAwesomeIcon icon={faHome} /> Try Again
+          </button>
         </div>
       ) : favourites.length === 0 ? (
         <p className="no-results">You haven't favourited any properties yet.</p>
       ) : (
         <div className="property-grid">
-          {favourites.map((p) => (
-            <div className="property-card" key={p.id}>
-              <img
-                src={
-                  p.image_url
-                    ? require(`../assets/${p.image_url}`)
-                    : defaultImage
-                }
-                alt={p.title}
-                className="property-image"
-              />
-              <div className="property-details">
-                <div className="property-header">
-                  <h3>{p.title}</h3>
-                  <FontAwesomeIcon
-                    icon={faSolidHeart}
-                    className="heart-icon favourited"
-                    onClick={() => removeFavourite(p.id)}
-                  />
+          {favourites.map((p) => {
+            // Ensure propertyId is a number
+            const propertyId = parseInt(p?.property_id || p?.id, 10);
+            return (
+              <div className="property-card" key={propertyId || Math.random()}>
+                <img
+                  src={getImageSource(p?.image_url)}
+                  alt={p?.title || "Property"}
+                  className="property-image"
+                  onError={(e) => {
+                    console.log(
+                      "[DEBUG] Favourites: Image load error, using fallback"
+                    );
+                    e.target.onerror = null;
+                    e.target.src = defaultImage;
+                  }}
+                />
+                <div className="property-details">
+                  <div className="property-header">
+                    <h3>{p?.title || "Untitled Property"}</h3>
+                    <FontAwesomeIcon
+                      icon={faSolidHeart}
+                      className="heart-icon favourited"
+                      onClick={() => removeFavourite(propertyId)}
+                    />
+                  </div>
+                  <p className="property-location">
+                    {p?.location || "Location not specified"}
+                  </p>
+                  <p>
+                    <strong>
+                      £
+                      {p?.price
+                        ? parseFloat(p.price).toLocaleString()
+                        : "Price not available"}
+                    </strong>
+                  </p>
+                  <p>
+                    <FontAwesomeIcon icon={faBed} /> {p?.bedrooms || "0"}{" "}
+                    <FontAwesomeIcon icon={faBath} /> {p?.bathrooms || "0"}
+                  </p>
+                  <p className="property-type">
+                    {p?.property_type || "Not specified"}
+                  </p>
+                  <Link to={`/property/${propertyId}`} className="details-link">
+                    View Details
+                  </Link>
                 </div>
-                <p className="property-location">{p.location}</p>
-                <p>
-                  <strong>£{parseFloat(p.price).toLocaleString()}</strong>
-                </p>
-                <p>
-                  <FontAwesomeIcon icon={faBed} /> {p.bedrooms}{" "}
-                  <FontAwesomeIcon icon={faBath} /> {p.bathrooms}
-                </p>
-                <p className="property-type">{p.property_type}</p>
-                <Link to={`/property/${p.id}`} className="details-link">
-                  View Details
-                </Link>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

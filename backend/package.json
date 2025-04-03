@@ -4,7 +4,15 @@
   "description": "Backend for HomiesHomes project using Koa, mysql2, JWT, and more",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "docs": "node -e \"require('fs').copyFileSync('./schemas/openapi.yaml', './docs/schemas/openapi.yaml')\"",
+    "docs:serve": "node docs.js",
+    "test:setup": "node scripts/setup-test-db.js",
+    "test": "npm run test:setup && jest",
+    "test:watch": "npm run test:setup && jest --watch",
+    "test:coverage": "npm run test:setup && jest --coverage",
+    "test:validation": "npm run test:setup && jest propertyValidation.test.js searchParamsValidation.test.js validationMiddleware.test.js",
+    "test:auth": "npm run test:setup && jest authentication.test.js"
   },
   "dependencies": {
     "@koa/cors": "^3.3.0",
@@ -16,7 +24,16 @@
     "koa": "^2.14.1",
     "koa-body": "^6.0.1",
     "koa-bodyparser": "^4.3.0",
+    "koa-compress": "^5.1.1",
+    "koa-logger": "^3.2.1",
+    "koa-mount": "^4.0.0",
+    "koa-response-time": "^2.1.0",
     "koa-router": "^10.1.1",
+    "koa-static": "^5.0.0",
     "mysql2": "^3.3.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   }
 }

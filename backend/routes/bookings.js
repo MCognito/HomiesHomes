@@ -8,15 +8,13 @@ const {
   validateBookingStatusUpdate,
   sanitizeString,
 } = require("../controllers/validation");
-const {
-  createBookingSchema,
-  updateBookingSchema,
-  updateStatusSchema,
-} = require("../schemas/bookings");
 
 // Handle OPTIONS request for CORS preflight
 router.options("/", async (ctx) => {
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -32,7 +30,10 @@ router.options("/", async (ctx) => {
 // Get all bookings
 router.get("/", authMiddleware, async (ctx) => {
   // Set CORS headers
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
@@ -59,7 +60,9 @@ router.get("/", authMiddleware, async (ctx) => {
         u.user_phone as user_phone,
         a.username as agent_username,
         a.user_firstName as agent_firstName,
-        a.user_lastName as agent_lastName
+        a.user_lastName as agent_lastName,
+        a.user_email as agent_email,
+        a.user_phone as agent_phone
       FROM bookings b
       JOIN properties p ON b.property_id = p.id
       JOIN users u ON b.user_id = u.user_id
@@ -192,18 +195,32 @@ router.get("/", authMiddleware, async (ctx) => {
 });
 
 // Create a new booking
-router.post("/", authMiddleware, validateBooking, async (ctx) => {
+router.post("/", authMiddleware, async (ctx) => {
   console.log("Booking POST request received:", ctx.request.body);
 
   // Set CORS headers
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
     const { property_id, scheduled_date, scheduled_time } = ctx.request.body;
     const user_id = ctx.state.user.user_id;
 
-    // Sanitize and convert inputs - ensure property_id is an integer
+    // Custom validation
+    if (!property_id || !scheduled_date || !scheduled_time) {
+      ctx.status = 400;
+      ctx.body = {
+        error: "Missing required fields",
+        success: false,
+        message: "Property ID, date and time are required",
+      };
+      return;
+    }
+
+    // Sanitize and convert inputs
     const sanitizedPropertyId = parseInt(property_id, 10);
 
     // Validate that property_id is a valid number after conversion
@@ -290,7 +307,10 @@ router.post("/", authMiddleware, validateBooking, async (ctx) => {
 
 // Handle OPTIONS request for CORS preflight on single booking
 router.options("/:id", async (ctx) => {
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -307,7 +327,10 @@ router.options("/:id", async (ctx) => {
 
 // Handle OPTIONS request for status endpoint
 router.options("/:id/status", async (ctx) => {
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Methods", "PUT, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -327,7 +350,10 @@ router.get("/:id", authMiddleware, async (ctx) => {
   console.log(`Booking GET request for ID: ${ctx.params.id}`);
 
   // Set CORS headers
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
@@ -409,7 +435,10 @@ router.put("/:id", authMiddleware, validateBookingUpdate, async (ctx) => {
   console.log(`Booking PUT request for ID: ${ctx.params.id}`, ctx.request.body);
 
   // Set CORS headers
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
@@ -501,7 +530,10 @@ router.put(
     );
 
     // Set CORS headers
-    ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+    ctx.set(
+      "Access-Control-Allow-Origin",
+      "https://gammacairo-deltareward-9000.codio-box.uk"
+    );
     ctx.set("Access-Control-Allow-Credentials", "true");
 
     try {
@@ -609,7 +641,10 @@ router.delete("/:id", authMiddleware, async (ctx) => {
   console.log(`Booking DELETE request for ID: ${ctx.params.id}`);
 
   // Set CORS headers
-  ctx.set("Access-Control-Allow-Origin", "https://gammacairo-deltareward-3000.codio-box.uk");
+  ctx.set(
+    "Access-Control-Allow-Origin",
+    "https://gammacairo-deltareward-9000.codio-box.uk"
+  );
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {

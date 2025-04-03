@@ -1,0 +1,35 @@
+.error-message {
+  color: #d9534f;
+  background-color: rgba(217, 83, 79, 0.1);
+  border: 1px solid #d9534f;
+  border-radius: 4px;
+  padding: 12px 15px;
+  margin: 10px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-message::before {
+  content: "⚠️";
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Add loading state styling */
+.search-btn.loading {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .error-message {
+    padding: 10px;
+    font-size: 13px;
+  }
+}

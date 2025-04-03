@@ -1,0 +1,1198 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: HomiesHomes Real Estate API
+  description: A RESTful API for HomiesHomes real estate platform. This API provides endpoints for managing users, properties, bookings, and favorites.
+  contact:
+    name: HomiesHomes Development Team
+  license:
+    name: Apache 2.0
+    url: "https://www.apache.org/licenses/LICENSE-2.0.html"
+servers:
+  - url: "https://gammacairo-deltareward-3000.codio-box.uk"
+    description: Codio development server
+tags:
+  - name: Users
+    description: API endpoints for user management and authentication
+  - name: Properties
+    description: API endpoints for real estate property listings
+  - name: Bookings
+    description: API endpoints for property viewing bookings
+  - name: Favourites
+    description: API endpoints for managing user's favorite properties
+  - name: Uploads
+    description: API endpoints for file uploads
+
+# Security schemes
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Bad Request"
+        path:
+          type: string
+          example: "/users"
+        timestamp:
+          type: string
+          example: "2023-03-30T12:00:00Z"
+
+    User:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "john_doe"
+        user_email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        user_phone:
+          type: string
+          example: "1234567890"
+        user_firstName:
+          type: string
+          example: "John"
+        user_lastName:
+          type: string
+          example: "Doe"
+        user_levels:
+          type: integer
+          enum: [0, 1, 2]
+          description: "User role level (0=user, 1=agent, 2=admin)"
+          example: 0
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-03-30T12:00:00Z"
+
+    Property:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "Modern Apartment in City Center"
+        description:
+          type: string
+          example: "A beautiful modern apartment with great views."
+        price:
+          type: number
+          format: float
+          example: 250000
+        location:
+          type: string
+          example: "London, UK"
+        bedrooms:
+          type: integer
+          example: 2
+        bathrooms:
+          type: integer
+          example: 1
+        property_type:
+          type: string
+          example: "Apartment"
+        property_status:
+          type: string
+          enum: [For Sale, For Rent]
+          example: "For Sale"
+        image_url:
+          type: string
+          example: "/uploads/image-123456.jpg"
+        agent_id:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-03-30T12:00:00Z"
+
+    Booking:
+      type: object
+      properties:
+        booking_id:
+          type: integer
+          example: 1
+        property_id:
+          type: integer
+          example: 42
+        user_id:
+          type: integer
+          example: 7
+        agent_id:
+          type: integer
+          example: 5
+        scheduled_date:
+          type: string
+          format: date
+          example: "2023-04-15"
+        scheduled_time:
+          type: string
+          example: "14:30"
+        booking_status:
+          type: string
+          enum: [pending, confirmed, cancelled, attended]
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-03-30T12:00:00Z"
+
+    Favourite:
+      type: object
+      properties:
+        favourite_id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 7
+        property_id:
+          type: integer
+          example: 42
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-03-30T12:00:00Z"
+
+paths:
+  /register:
+    post:
+      tags:
+        - Users
+      summary: Register a new user
+      description: Creates a new user account with the provided information
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - user_email
+              properties:
+                username:
+                  type: string
+                  example: "john_doe"
+                password:
+                  type: string
+                  format: password
+                  example: "securePassword123"
+                user_email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                user_phone:
+                  type: string
+                  example: "1234567890"
+                user_firstName:
+                  type: string
+                  example: "John"
+                user_lastName:
+                  type: string
+                  example: "Doe"
+      responses:
+        "201":
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User registered successfully"
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        "400":
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /login:
+    post:
+      tags:
+        - Users
+      summary: User login
+      description: Authenticates a user and returns a JWT token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: "john_doe"
+                password:
+                  type: string
+                  format: password
+                  example: "securePassword123"
+      responses:
+        "200":
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Returns a list of all users (admin only)
+      operationId: getAllUsers
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - requires admin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /users/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: User ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Returns user information by ID
+      operationId: getUserById
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Updates an existing user's information
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_email:
+                  type: string
+                  format: email
+                  example: "new.email@example.com"
+                user_phone:
+                  type: string
+                  example: "0987654321"
+                user_firstName:
+                  type: string
+                  example: "Johnny"
+                user_lastName:
+                  type: string
+                  example: "Doeson"
+                password:
+                  type: string
+                  format: password
+                  example: "newSecurePassword123"
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User updated successfully"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /properties:
+    get:
+      tags:
+        - Properties
+      summary: Get all properties
+      description: Returns a list of all properties with optional filtering
+      operationId: getAllProperties
+      parameters:
+        - name: location
+          in: query
+          description: Filter by location
+          schema:
+            type: string
+        - name: minBedrooms
+          in: query
+          description: Minimum number of bedrooms
+          schema:
+            type: integer
+        - name: maxBedrooms
+          in: query
+          description: Maximum number of bedrooms
+          schema:
+            type: integer
+        - name: minBathrooms
+          in: query
+          description: Minimum number of bathrooms
+          schema:
+            type: integer
+        - name: maxBathrooms
+          in: query
+          description: Maximum number of bathrooms
+          schema:
+            type: integer
+        - name: propertyType
+          in: query
+          description: Type of property
+          schema:
+            type: string
+        - name: minPrice
+          in: query
+          description: Minimum price
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          description: Maximum price
+          schema:
+            type: number
+        - name: keyword
+          in: query
+          description: Search keyword in title and description
+          schema:
+            type: string
+        - name: listingType
+          in: query
+          description: Type of listing (Sale/Rent)
+          schema:
+            type: string
+            enum: [For Sale, For Rent, all]
+        - name: limit
+          in: query
+          description: Number of results to return
+          schema:
+            type: integer
+        - name: sortBy
+          in: query
+          description: Field to sort by
+          schema:
+            type: string
+            enum: [price, bedrooms, bathrooms, title, location]
+        - name: sortOrder
+          in: query
+          description: Order of sorting
+          schema:
+            type: string
+            enum: [ASC, DESC]
+        - name: agent_id
+          in: query
+          description: Filter by agent ID
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of properties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+
+    post:
+      tags:
+        - Properties
+      summary: Create a new property
+      description: Creates a new property listing (agent or admin only)
+      operationId: createProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - price
+                - location
+                - bedrooms
+                - bathrooms
+                - property_type
+              properties:
+                title:
+                  type: string
+                  minLength: 5
+                  maxLength: 255
+                  pattern: "^[a-zA-Z0-9\\s\\.,']+$"
+                  description: "Property title with allowed characters: letters, numbers, spaces, apostrophes and periods"
+                  example: "Luxury Villa with Pool"
+                description:
+                  type: string
+                  minLength: 20
+                  maxLength: 2000
+                  pattern: "^[a-zA-Z0-9\\s\\.,\\-()&'\":;\\n\\r!?£$€¥\\[\\]]+$"
+                  description: "Property description with allowed characters: letters, numbers, spaces, newlines, common punctuation and currency symbols"
+                  example: "A magnificent luxury villa with private pool."
+                price:
+                  type: number
+                  minimum: 1
+                  maximum: 1000000000
+                  example: 750000
+                  description: "Property price as a positive number"
+                location:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                  pattern: "^[a-zA-Z0-9\\s\\,.']+$"
+                  description: "Property location with allowed characters: letters, numbers, spaces, commas and apostrophes"
+                  example: "Manchester, UK"
+                bedrooms:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  example: 4
+                  description: "Number of bedrooms (must be positive whole number)"
+                bathrooms:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  example: 3
+                  description: "Number of bathrooms (must be positive whole number)"
+                property_type:
+                  type: string
+                  enum:
+                    [
+                      "Apartment",
+                      "House",
+                      "Condo",
+                      "Townhouse",
+                      "Land",
+                      "Villa",
+                      "Cottage",
+                      "Penthouse",
+                      "Terraced",
+                    ]
+                  example: "Villa"
+                property_status:
+                  type: string
+                  enum: [For Sale, For Rent]
+                  example: "For Sale"
+                image_url:
+                  type: string
+                  maxLength: 500
+                  pattern: "^[a-zA-Z0-9\\._-]+\\.(jpg|jpeg|png|gif|webp)$|^(https?:\\/\\/)?(www\\.)?[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+([\\/\\w\\.-]*)*\\.(jpg|jpeg|png|gif|webp)$"
+                  description: "Image filename with valid format (.jpg, .jpeg, .png, .gif, .webp) or URL pointing to an image with these extensions"
+                  example: "villa-image.jpg"
+      responses:
+        "201":
+          description: Property created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property created successfully"
+                  property_id:
+                    type: integer
+                    example: 42
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - requires agent or admin privileges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /properties/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Property ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    get:
+      tags:
+        - Properties
+      summary: Get property by ID
+      description: Returns a property by its ID
+      operationId: getPropertyById
+      responses:
+        "200":
+          description: Property found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Properties
+      summary: Update property
+      description: Updates an existing property (agent owner or admin only)
+      operationId: updateProperty
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Luxury Villa with Pool"
+                description:
+                  type: string
+                  example: "Updated description for the villa."
+                price:
+                  type: number
+                  example: 775000
+                location:
+                  type: string
+                  example: "Manchester, UK"
+                bedrooms:
+                  type: integer
+                  example: 5
+                bathrooms:
+                  type: integer
+                  example: 4
+                property_type:
+                  type: string
+                  example: "Villa"
+                property_status:
+                  type: string
+                  enum: [For Sale, For Rent]
+                  example: "For Sale"
+                image_url:
+                  type: string
+                  example: "/uploads/image-123456.jpg"
+      responses:
+        "200":
+          description: Property updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property updated successfully"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not the property owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      tags:
+        - Properties
+      summary: Delete property
+      description: Deletes a property (agent owner or admin only)
+      operationId: deleteProperty
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Property deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property deleted successfully"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not the property owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Property not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get all bookings
+      description: Returns a list of bookings (user sees own, agent sees properties they manage, admin sees all)
+      operationId: getAllBookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by booking status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, attended]
+        - name: date_from
+          in: query
+          description: Filter by dates from
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          description: Filter by dates to
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [date_asc, date_desc]
+      responses:
+        "200":
+          description: A list of bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Booking"
+                  _links:
+                    type: object
+                    properties:
+                      self:
+                        type: object
+                        properties:
+                          href:
+                            type: string
+                            example: "/bookings"
+                          method:
+                            type: string
+                            example: "GET"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - Bookings
+      summary: Create a booking
+      description: Creates a new property viewing booking
+      operationId: createBooking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - property_id
+                - scheduled_date
+                - scheduled_time
+              properties:
+                property_id:
+                  type: integer
+                  example: 42
+                scheduled_date:
+                  type: string
+                  format: date
+                  example: "2023-04-20"
+                scheduled_time:
+                  type: string
+                  example: "15:30"
+                notes:
+                  type: string
+                  example: "I'm interested in financing options."
+      responses:
+        "201":
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Booking created successfully"
+                  booking_id:
+                    type: integer
+                    example: 15
+        "400":
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Booking ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Returns a booking by its ID
+      operationId: getBookingById
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not authorized to view this booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      tags:
+        - Bookings
+      summary: Update booking
+      description: Updates a booking (owner, property agent, or admin only)
+      operationId: updateBooking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduled_date:
+                  type: string
+                  format: date
+                  example: "2023-04-25"
+                scheduled_time:
+                  type: string
+                  example: "16:00"
+                notes:
+                  type: string
+                  example: "Updated notes for the booking."
+      responses:
+        "200":
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Booking updated successfully"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not authorized to update this booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /bookings/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        description: Booking ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    put:
+      tags:
+        - Bookings
+      summary: Update booking status
+      description: Updates a booking's status (owner can cancel, agent can confirm/cancel/attended)
+      operationId: updateBookingStatus
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, confirmed, cancelled, attended]
+                  example: "confirmed"
+      responses:
+        "200":
+          description: Booking status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Booking status updated to confirmed"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not authorized to update this booking's status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /favourites:
+    get:
+      tags:
+        - Favourites
+      summary: Get user's favourites
+      description: Returns a list of properties favourited by the authenticated user
+      operationId: getUserFavourites
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: A list of favourite properties
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Property"
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: "/favourites"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    post:
+      tags:
+        - Favourites
+      summary: Add favourite
+      description: Adds a property to the user's favourites
+      operationId: addFavourite
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - property_id
+              properties:
+                property_id:
+                  type: integer
+                  example: 42
+      responses:
+        "201":
+          description: Property added to favourites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property favourited"
+                  success:
+                    type: boolean
+                    example: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Already favourited
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Already favourited"
+
+  /favourites/{property_id}:
+    parameters:
+      - name: property_id
+        in: path
+        description: Property ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    delete:
+      tags:
+        - Favourites
+      summary: Remove favourite
+      description: Removes a property from the user's favourites
+      operationId: removeFavourite
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Property removed from favourites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Favourite removed"
+                  success:
+                    type: boolean
+                    example: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Favourite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /upload:
+    post:
+      tags:
+        - Uploads
+      summary: Upload image
+      description: Uploads an image and returns the URL
+      operationId: uploadImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: The image file to upload
+      responses:
+        "200":
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imageUrl:
+                    type: string
+                    example: "/uploads/1617123456789-12345.jpg"
+        "400":
+          description: No image file provided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Failed to save image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"

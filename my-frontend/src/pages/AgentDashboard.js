@@ -15,9 +15,16 @@ import {
   faCalendarDay,
   faCalendarWeek,
   faFilter,
+  faSync,
+  faHeart,
+  faSearch,
+  faClock,
+  faUser,
+  faEnvelope,
+  faPhone,
 } from "@fortawesome/free-solid-svg-icons";
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+const API_BASE_URL = "https://gammacairo-deltareward-3000.codio-box.uk";
 
 const AgentDashboard = ({ token, userInfo }) => {
   const [properties, setProperties] = useState([]);
@@ -27,18 +34,23 @@ const AgentDashboard = ({ token, userInfo }) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [sortOption, setSortOption] = useState("latest");
   const [viewMode, setViewMode] = useState("all");
+  const [isLoading, setIsLoading] = useState(false);
+  const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
     if (activeTab === "properties") {
       fetchAgentProperties();
     } else if (activeTab === "bookings") {
       fetchAgentBookings();
+    } else if (activeTab === "favorites") {
+      fetchAgentFavorites();
     }
   }, [activeTab, token, sortOption]);
 
   const fetchAgentProperties = async () => {
     try {
       setErrorMessage("");
+      setIsLoading(true);
 
       if (!userInfo || !userInfo.user_id) {
         setErrorMessage("User information not available");
@@ -47,7 +59,6 @@ const AgentDashboard = ({ token, userInfo }) => {
 
       console.log(`Fetching properties for agent ID: ${userInfo.user_id}`);
 
-      // Use the correct query parameter to filter by agent_id
       const res = await fetch(
         `${API_BASE_URL}/properties?agent_id=${userInfo.user_id}`,
         {
@@ -73,12 +84,15 @@ const AgentDashboard = ({ token, userInfo }) => {
     } catch (err) {
       console.error("Error fetching agent properties:", err);
       setErrorMessage("Error fetching properties: " + err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchAgentBookings = async () => {
     try {
       setErrorMessage("");
+      setIsLoading(true);
       console.log("Fetching bookings for agent:", userInfo?.user_id);
 
       // Build query parameters for sorting
@@ -116,6 +130,32 @@ const AgentDashboard = ({ token, userInfo }) => {
     } catch (err) {
       console.error("Error fetching bookings:", err);
       setErrorMessage("Error fetching bookings: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchAgentFavorites = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/favourites`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching favorites: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setFavorites(data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch favorites:", error);
+      setErrorMessage("Unable to load your favorites at this time.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -311,6 +351,54 @@ const AgentDashboard = ({ token, userInfo }) => {
   // Get filtered bookings based on current view mode
   const filteredBookings = getFilteredBookings();
 
+  // Helper function to get image source
+  const getImageSource = (imagePath) => {
+    try {
+      if (!imagePath) {
+        return require("../assets/prop1.jpg");
+      }
+
+      if (imagePath.startsWith("http")) {
+        return imagePath;
+      }
+
+      return require(`../assets/${imagePath}`);
+    } catch (error) {
+      console.warn(`Image not found: ${imagePath}`, error);
+      return require("../assets/prop1.jpg");
+    }
+  };
+
+  const handleRemoveFavorite = async (propertyId) => {
+    if (!window.confirm("Remove this property from your favorites?")) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/favourites/${propertyId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to remove from favorites");
+      }
+
+      setSuccessMessage("Property removed from favorites");
+      // Refresh favorites list
+      fetchAgentFavorites();
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      setErrorMessage("Failed to remove from favorites: " + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="agent-dashboard">
       <h1>Agent Dashboard</h1>
@@ -328,6 +416,12 @@ const AgentDashboard = ({ token, userInfo }) => {
           onClick={() => setActiveTab("bookings")}
         >
           <FontAwesomeIcon icon={faCalendarAlt} /> Viewing Requests
+        </button>
+        <button
+          className={`tab-btn ${activeTab === "favorites" ? "active" : ""}`}
+          onClick={() => setActiveTab("favorites")}
+        >
+          <FontAwesomeIcon icon={faHeart} /> My Favorites
         </button>
       </div>
 
@@ -351,74 +445,164 @@ const AgentDashboard = ({ token, userInfo }) => {
         <div className="properties-section">
           <div className="section-header">
             <h2>My Properties</h2>
-            <Link to="/AddProperty" className="add-btn">
-              <FontAwesomeIcon icon={faPlus} /> Add New Property
-            </Link>
+            <div className="section-actions">
+              <button
+                onClick={fetchAgentProperties}
+                className="refresh-btn"
+                disabled={isLoading}
+              >
+                <FontAwesomeIcon icon={faSync} spin={isLoading} /> Refresh
+              </button>
+              <Link to="/AddProperty" className="add-btn">
+                <FontAwesomeIcon icon={faPlus} /> Add New Property
+              </Link>
+            </div>
           </div>
 
-          {properties.length === 0 ? (
-            <p>No properties found. Add your first property!</p>
+          {isLoading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Loading your properties...</p>
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="empty-state">
+              <FontAwesomeIcon icon={faHome} className="empty-state-icon" />
+              <p>No properties found. Add your first property!</p>
+              <Link to="/AddProperty" className="add-btn">
+                <FontAwesomeIcon icon={faPlus} /> Add Property
+              </Link>
+            </div>
           ) : (
-            <table className="agent-table">
-              <thead>
-                <tr>
-                  <th>Image</th>
-                  <th>Title</th>
-                  <th>Price</th>
-                  <th>Location</th>
-                  <th>Details</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {properties.map((property) => (
-                  <tr key={property.id}>
-                    <td className="property-image-cell">
-                      <img
-                        src={
-                          property.image_url
-                            ? require(`../assets/${property.image_url}`)
-                            : require("../assets/prop1.jpg")
-                        }
-                        alt={property.title}
-                        className="property-thumbnail"
-                      />
-                    </td>
-                    <td>{property.title}</td>
-                    <td>£{parseFloat(property.price).toLocaleString()}</td>
-                    <td>{property.location}</td>
-                    <td>
-                      {property.bedrooms} beds, {property.bathrooms} baths
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <Link
-                          to={`/property/${property.id}`}
-                          className="view-btn"
-                          title="View Property"
-                        >
-                          <FontAwesomeIcon icon={faHome} />
-                        </Link>
-                        <Link
-                          to={`/editProperty/${property.id}`}
-                          className="edit-btn"
-                          title="Edit Property"
-                        >
-                          <FontAwesomeIcon icon={faEdit} />
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteProperty(property.id)}
-                          className="delete-btn"
-                          title="Delete Property"
-                        >
-                          <FontAwesomeIcon icon={faTrash} />
-                        </button>
+            <>
+              {/* Desktop view */}
+              <div className="desktop-view">
+                <table className="agent-table">
+                  <thead>
+                    <tr>
+                      <th>Image</th>
+                      <th>Title</th>
+                      <th>Price</th>
+                      <th>Location</th>
+                      <th>Details</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {properties.map((property) => (
+                      <tr key={property.id}>
+                        <td className="property-image-cell">
+                          <img
+                            src={
+                              property.image_url
+                                ? require(`../assets/${property.image_url}`)
+                                : require("../assets/prop1.jpg")
+                            }
+                            alt={property.title}
+                            className="property-thumbnail"
+                          />
+                        </td>
+                        <td>{property.title}</td>
+                        <td>£{parseFloat(property.price).toLocaleString()}</td>
+                        <td>{property.location}</td>
+                        <td>
+                          {property.bedrooms} beds, {property.bathrooms} baths
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <Link
+                              to={`/property/${property.id}`}
+                              className="view-btn"
+                              title="View Property"
+                            >
+                              <FontAwesomeIcon icon={faHome} />
+                            </Link>
+                            {property.agent_id === userInfo.user_id && (
+                              <>
+                                <Link
+                                  to={`/editProperty/${property.id}`}
+                                  className="edit-btn"
+                                  title="Edit Property"
+                                >
+                                  <FontAwesomeIcon icon={faEdit} />
+                                </Link>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteProperty(property.id)
+                                  }
+                                  className="delete-btn"
+                                  title="Delete Property"
+                                >
+                                  <FontAwesomeIcon icon={faTrash} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile view */}
+              <div className="mobile-view">
+                <div className="property-cards">
+                  {properties.map((property) => (
+                    <div className="property-card" key={property.id}>
+                      <div className="property-card-image">
+                        <img
+                          src={
+                            property.image_url
+                              ? require(`../assets/${property.image_url}`)
+                              : require("../assets/prop1.jpg")
+                          }
+                          alt={property.title}
+                        />
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="property-card-content">
+                        <h3>{property.title}</h3>
+                        <p className="property-price">
+                          £{parseFloat(property.price).toLocaleString()}
+                        </p>
+                        <p className="property-location">{property.location}</p>
+                        <p className="property-details">
+                          {property.bedrooms} beds, {property.bathrooms} baths
+                        </p>
+                        <div className="property-card-actions">
+                          <Link
+                            to={`/property/${property.id}`}
+                            className="view-btn"
+                            title="View Property"
+                          >
+                            <FontAwesomeIcon icon={faHome} /> View
+                          </Link>
+                          {property.agent_id === userInfo.user_id && (
+                            <>
+                              <Link
+                                to={`/editProperty/${property.id}`}
+                                className="edit-btn"
+                                title="Edit Property"
+                              >
+                                <FontAwesomeIcon icon={faEdit} /> Edit
+                              </Link>
+                              <button
+                                onClick={() =>
+                                  handleDeleteProperty(property.id)
+                                }
+                                className="delete-btn"
+                                title="Delete Property"
+                              >
+                                <FontAwesomeIcon icon={faTrash} /> Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -464,140 +648,245 @@ const AgentDashboard = ({ token, userInfo }) => {
             </div>
           </div>
 
-          {filteredBookings.length === 0 ? (
+          {isLoading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Loading viewing requests...</p>
+            </div>
+          ) : filteredBookings.length === 0 ? (
             <p>No viewing requests match your current filters.</p>
           ) : (
-            <table className="agent-table">
-              <thead>
-                <tr>
-                  <th>Property</th>
-                  <th>Client</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBookings.map((booking) => {
-                  // Check if this is a past confirmed booking that hasn't been marked as attended
-                  const isPastConfirmed =
-                    booking.booking_status === "confirmed" &&
-                    isPastDateTime(
-                      booking.scheduled_date,
-                      booking.scheduled_time
-                    );
+            <div className="booking-list">
+              {filteredBookings.map((booking) => {
+                // Check if this is a past confirmed booking that hasn't been marked as attended
+                const isPastConfirmed =
+                  booking.booking_status === "confirmed" &&
+                  isPastDateTime(
+                    booking.scheduled_date,
+                    booking.scheduled_time
+                  );
 
-                  // Determine if this is a past date for visual highlighting
-                  const isDateInPast = isPastDate(booking.scheduled_date);
+                return (
+                  <div key={booking.booking_id} className="booking-item">
+                    <div className="booking-card">
+                      <div className="booking-header">
+                        <h4 className="property-title">
+                          {booking.property_title}
+                        </h4>
+                        <span
+                          className={`status-badge status-${booking.booking_status.toLowerCase()}`}
+                        >
+                          {booking.booking_status}
+                        </span>
+                      </div>
 
-                  return (
-                    <tr
-                      key={booking.booking_id}
-                      className={`status-row-${booking.booking_status} ${
-                        isPastConfirmed ? "past-booking" : ""
-                      }`}
-                    >
-                      <td>{booking.property_title}</td>
-                      <td>
-                        <FontAwesomeIcon icon={faUsers} />{" "}
-                        {booking.user_firstName} {booking.user_lastName}
-                        <div className="client-details">
-                          <small>{booking.user_email}</small>
-                          {booking.user_phone && (
-                            <small>{booking.user_phone}</small>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {new Date(booking.scheduled_date).toLocaleDateString()}
-                        {isPastConfirmed && (
-                          <span className="date-indicator past-date">Past</span>
-                        )}
-                        {isUpcoming(booking.scheduled_date) &&
-                          !isPastDateTime(
-                            booking.scheduled_date,
-                            booking.scheduled_time
-                          ) && (
-                            <span className="date-indicator upcoming-date">
-                              Soon
-                            </span>
-                          )}
-                      </td>
-                      <td>
-                        {booking.scheduled_time}
-                        {isPastConfirmed && (
-                          <div className="time-indicator">
-                            <small className="past-time">Completed</small>
+                      <div className="booking-content">
+                        <div className="booking-details">
+                          <div className="detail-row">
+                            <FontAwesomeIcon
+                              icon={faCalendarAlt}
+                              className="detail-icon"
+                            />
+                            <div className="detail-info">
+                              <span className="detail-label">
+                                Viewing Date:
+                              </span>
+                              <span className="detail-value">
+                                {new Date(
+                                  booking.scheduled_date
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </td>
-                      <td className={`status-${booking.booking_status}`}>
-                        {booking.booking_status.charAt(0).toUpperCase() +
-                          booking.booking_status.slice(1)}
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          {booking.booking_status === "pending" && (
-                            <>
-                              <button
-                                onClick={() =>
-                                  handleUpdateBookingStatus(
-                                    booking.booking_id,
-                                    "confirmed"
-                                  )
-                                }
-                                className="confirm-btn"
-                                title="Confirm Booking"
-                              >
-                                <FontAwesomeIcon icon={faCheck} /> Confirm
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleUpdateBookingStatus(
-                                    booking.booking_id,
-                                    "cancelled"
-                                  )
-                                }
-                                className="cancel-btn"
-                                title="Cancel Booking"
-                              >
-                                <FontAwesomeIcon icon={faTimes} /> Cancel
-                              </button>
-                            </>
-                          )}
+                          <div className="detail-row">
+                            <FontAwesomeIcon
+                              icon={faClock}
+                              className="detail-icon"
+                            />
+                            <div className="detail-info">
+                              <span className="detail-label">Time:</span>
+                              <span className="detail-value">
+                                {booking.scheduled_time}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                          {/* Add attended button for confirmed past bookings */}
-                          {isPastConfirmed && (
+                        <div className="client-details">
+                          <h5 className="client-section-title">
+                            Client Details
+                          </h5>
+                          <div className="detail-row">
+                            <FontAwesomeIcon
+                              icon={faUser}
+                              className="detail-icon"
+                            />
+                            <div className="detail-info">
+                              <span className="detail-label">Name:</span>
+                              <span className="detail-value">
+                                {booking.user_firstName} {booking.user_lastName}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="detail-row">
+                            <FontAwesomeIcon
+                              icon={faEnvelope}
+                              className="detail-icon"
+                            />
+                            <div className="detail-info">
+                              <span className="detail-label">Email:</span>
+                              <span className="detail-value">
+                                {booking.user_email}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="detail-row">
+                            <FontAwesomeIcon
+                              icon={faPhone}
+                              className="detail-icon"
+                            />
+                            <div className="detail-info">
+                              <span className="detail-label">Phone:</span>
+                              <span className="detail-value">
+                                {booking.user_phone || "Not provided"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="booking-actions">
+                        {booking.booking_status === "pending" && (
+                          <>
                             <button
                               onClick={() =>
                                 handleUpdateBookingStatus(
                                   booking.booking_id,
-                                  "attended"
+                                  "confirmed"
                                 )
                               }
-                              className="attended-btn"
-                              title="Mark as Attended"
+                              className="action-button confirm-btn"
                             >
-                              <FontAwesomeIcon icon={faCalendarCheck} /> Mark
-                              Attended
+                              <FontAwesomeIcon icon={faCheck} /> Confirm
                             </button>
-                          )}
+                            <button
+                              onClick={() =>
+                                handleUpdateBookingStatus(
+                                  booking.booking_id,
+                                  "cancelled"
+                                )
+                              }
+                              className="action-button cancel-btn"
+                            >
+                              <FontAwesomeIcon icon={faTimes} /> Cancel
+                            </button>
+                          </>
+                        )}
 
-                          <Link
-                            to={`/property/${booking.property_id}`}
-                            className="view-btn"
-                            title="View Property"
+                        {/* Add attended button for confirmed past bookings */}
+                        {isPastConfirmed && (
+                          <button
+                            onClick={() =>
+                              handleUpdateBookingStatus(
+                                booking.booking_id,
+                                "attended"
+                              )
+                            }
+                            className="action-button attend-btn"
                           >
-                            <FontAwesomeIcon icon={faHome} />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            <FontAwesomeIcon icon={faCalendarCheck} /> Mark
+                            Attended
+                          </button>
+                        )}
+
+                        <Link
+                          to={`/property/${booking.property_id}`}
+                          className="view-btn"
+                          title="View Property"
+                        >
+                          <FontAwesomeIcon icon={faHome} />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Favorites Tab */}
+      {activeTab === "favorites" && (
+        <div className="favorites-section">
+          <div className="section-header">
+            <h2>My Favorite Properties</h2>
+            <button
+              className="refresh-btn"
+              onClick={fetchAgentFavorites}
+              disabled={isLoading}
+            >
+              <FontAwesomeIcon icon={faSync} spin={isLoading} /> Refresh
+            </button>
+          </div>
+
+          {isLoading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+              <p>Loading your favorites...</p>
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="empty-state">
+              <FontAwesomeIcon icon={faHeart} className="empty-state-icon" />
+              <p>You haven't added any properties to your favorites yet.</p>
+              <Link to="/properties" className="browse-btn">
+                <FontAwesomeIcon icon={faSearch} /> Browse Properties
+              </Link>
+            </div>
+          ) : (
+            <div className="favorites-grid">
+              {favorites.map((favorite) => (
+                <div
+                  key={favorite.id || favorite.property_id}
+                  className="favorite-card"
+                >
+                  <img
+                    src={getImageSource(favorite.image_url)}
+                    alt={favorite.title}
+                    className="favorite-image"
+                  />
+                  <div className="favorite-content">
+                    <h3 className="favorite-title">{favorite.title}</h3>
+                    <p className="favorite-price">
+                      £{parseFloat(favorite.price).toLocaleString()}
+                    </p>
+                    <p className="favorite-location">{favorite.location}</p>
+                    <div className="favorite-details">
+                      <span>{favorite.bedrooms} beds</span>
+                      <span>{favorite.bathrooms} baths</span>
+                    </div>
+                    <div className="favorite-actions">
+                      <Link
+                        to={`/property/${favorite.id || favorite.property_id}`}
+                        className="view-btn"
+                      >
+                        <FontAwesomeIcon icon={faHome} /> View
+                      </Link>
+                      <button
+                        onClick={() =>
+                          handleRemoveFavorite(
+                            favorite.id || favorite.property_id
+                          )
+                        }
+                        className="delete-btn"
+                      >
+                        <FontAwesomeIcon icon={faTimes} /> Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
