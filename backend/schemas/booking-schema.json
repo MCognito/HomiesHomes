@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Booking Schema",
+  "description": "Schema for creating and updating viewing bookings",
+  "definitions": {
+    "bookingBase": {
+      "type": "object",
+      "properties": {
+        "property_id": {
+          "description": "ID of the property being booked for viewing",
+          "oneOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "string", "pattern": "^[1-9][0-9]*$" }
+          ]
+        },
+        "scheduled_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the viewing appointment (YYYY-MM-DD)"
+        },
+        "scheduled_time": {
+          "type": "string",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Time of the viewing appointment (HH:MM)"
+        },
+        "booking_status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "description": "Status of the booking"
+        }
+      }
+    }
+  },
+
+  "allOf": [{ "$ref": "#/definitions/bookingBase" }],
+
+  "oneOf": [
+    {
+      "title": "Create booking",
+      "required": ["property_id", "scheduled_date", "scheduled_time"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Update booking",
+      "required": ["scheduled_date", "scheduled_time"],
+      "additionalProperties": false
+    },
+    {
+      "title": "Update booking status",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "attended"],
+          "description": "Status to update the booking to"
+        }
+      },
+      "required": ["status"],
+      "additionalProperties": false
+    }
+  ]
+}
