@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "../styles/AddProperty.css";
 
-const API_BASE_URL = "https://gammacairo-deltareward-3000.codio-box.uk";
+const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
 
 // Default image to use if none provided
 const DEFAULT_IMAGE = "prop1.jpg";

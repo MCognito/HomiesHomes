@@ -22,20 +22,34 @@ if (!jwtSecret) {
   process.exit(1); // Stop execution if JWT_SECRET is missing
 }
 
+// Helper function to set CORS headers dynamically
+const setCorsHeaders = (ctx) => {
+  const origin = ctx.request.headers.origin;
+  const allowedOrigins = [
+    "https://gammacairo-deltareward-9000.codio-box.uk",
+    "https://gammacairo-deltareward-3000.codio-box.uk",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    ctx.set("Access-Control-Allow-Origin", origin);
+  } else {
+    ctx.set(
+      "Access-Control-Allow-Origin",
+      "https://gammacairo-deltareward-3000.codio-box.uk"
+    );
+  }
+  ctx.set("Access-Control-Allow-Credentials", "true");
+};
+
 // Handle OPTIONS request for CORS preflight for register
 router.options("/register", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Accept"
+    "Content-Type, Authorization, Content-Length, X-Requested-With"
   );
-  ctx.set("Access-Control-Allow-Credentials", "true");
-  ctx.set("Access-Control-Max-Age", "86400"); // 24 hours
-  ctx.status = 204; // No content for OPTIONS
+  ctx.status = 204;
 
   console.log("Register OPTIONS request handled with CORS headers");
 });
@@ -44,11 +58,7 @@ router.options("/register", async (ctx) => {
 router.post("/register", validateUser, async (ctx) => {
   console.log("Register request received:", ctx.request.body);
   // Set CORS headers for the register route
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   const {
     username,
@@ -158,10 +168,7 @@ router.post("/register", validateUser, async (ctx) => {
 
 // Handle OPTIONS request for CORS preflight
 router.options("/login", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -177,11 +184,7 @@ router.options("/login", async (ctx) => {
 // Login endpoint: validate credentials and generate JWT
 router.post("/login", validateLogin, async (ctx) => {
   // Set CORS headers explicitly for the login route
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   // Log the request for debugging
   console.log("Login request received:", {
@@ -400,10 +403,7 @@ router.put(
 
 // Handle OPTIONS request for agent-request
 router.options("/agent-request", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -419,15 +419,7 @@ router.options("/agent-request", async (ctx) => {
 router.get("/agent-request", authMiddleware, async (ctx) => {
   console.log("Forwarding agent-request GET to /agent-requests/status");
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
-  ctx.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Accept"
-  );
+  setCorsHeaders(ctx);
 
   // Redirect to the correct endpoint
   ctx.redirect("/agent-requests/status");
@@ -441,15 +433,7 @@ router.post(
   async (ctx) => {
     console.log("Forwarding agent-request POST to /agent-requests");
     // Set CORS headers
-    ctx.set(
-      "Access-Control-Allow-Origin",
-      "https://gammacairo-deltareward-9000.codio-box.uk"
-    );
-    ctx.set("Access-Control-Allow-Credentials", "true");
-    ctx.set(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, Accept"
-    );
+    setCorsHeaders(ctx);
 
     // Redirect to the correct endpoint
     ctx.redirect(307, "/agent-requests");

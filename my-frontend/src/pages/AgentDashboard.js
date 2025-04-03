@@ -24,7 +24,7 @@ import {
   faPhone,
 } from "@fortawesome/free-solid-svg-icons";
 
-const API_BASE_URL = "https://gammacairo-deltareward-3000.codio-box.uk";
+const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
 
 const AgentDashboard = ({ token, userInfo }) => {
   const [properties, setProperties] = useState([]);

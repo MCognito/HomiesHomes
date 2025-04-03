@@ -9,12 +9,28 @@ const {
   sanitizeString,
 } = require("../controllers/validation");
 
+// Helper function to set CORS headers dynamically
+const setCorsHeaders = (ctx) => {
+  const origin = ctx.request.headers.origin;
+  const allowedOrigins = [
+    "https://gammacairo-deltareward-9000.codio-box.uk",
+    "https://gammacairo-deltareward-3000.codio-box.uk",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    ctx.set("Access-Control-Allow-Origin", origin);
+  } else {
+    ctx.set(
+      "Access-Control-Allow-Origin",
+      "https://gammacairo-deltareward-3000.codio-box.uk"
+    );
+  }
+  ctx.set("Access-Control-Allow-Credentials", "true");
+};
+
 // Handle OPTIONS request for CORS preflight
 router.options("/", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -29,12 +45,7 @@ router.options("/", async (ctx) => {
 
 // Get all bookings
 router.get("/", authMiddleware, async (ctx) => {
-  // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   try {
     const userId = ctx.state.user.user_id;
@@ -198,12 +209,7 @@ router.get("/", authMiddleware, async (ctx) => {
 router.post("/", authMiddleware, async (ctx) => {
   console.log("Booking POST request received:", ctx.request.body);
 
-  // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   try {
     const { property_id, scheduled_date, scheduled_time } = ctx.request.body;
@@ -307,10 +313,7 @@ router.post("/", authMiddleware, async (ctx) => {
 
 // Handle OPTIONS request for CORS preflight on single booking
 router.options("/:id", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -327,10 +330,7 @@ router.options("/:id", async (ctx) => {
 
 // Handle OPTIONS request for status endpoint
 router.options("/:id/status", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "PUT, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -349,12 +349,7 @@ router.options("/:id/status", async (ctx) => {
 router.get("/:id", authMiddleware, async (ctx) => {
   console.log(`Booking GET request for ID: ${ctx.params.id}`);
 
-  // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   try {
     // Get user info and role level
@@ -434,12 +429,7 @@ router.get("/:id", authMiddleware, async (ctx) => {
 router.put("/:id", authMiddleware, validateBookingUpdate, async (ctx) => {
   console.log(`Booking PUT request for ID: ${ctx.params.id}`, ctx.request.body);
 
-  // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   try {
     // Get user info and role level
@@ -529,12 +519,7 @@ router.put(
       ctx.request.body
     );
 
-    // Set CORS headers
-    ctx.set(
-      "Access-Control-Allow-Origin",
-      "https://gammacairo-deltareward-9000.codio-box.uk"
-    );
-    ctx.set("Access-Control-Allow-Credentials", "true");
+    setCorsHeaders(ctx);
 
     try {
       // Validate and convert booking ID to integer
@@ -640,12 +625,7 @@ router.put(
 router.delete("/:id", authMiddleware, async (ctx) => {
   console.log(`Booking DELETE request for ID: ${ctx.params.id}`);
 
-  // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
 
   try {
     // Get user info and role level

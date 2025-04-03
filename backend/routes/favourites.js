@@ -4,12 +4,28 @@ const { authMiddleware } = require("../middlewares/auth");
 
 const router = new Router({ prefix: "/favourites" });
 
+// Helper function to set CORS headers dynamically
+const setCorsHeaders = (ctx) => {
+  const origin = ctx.request.headers.origin;
+  const allowedOrigins = [
+    "https://gammacairo-deltareward-9000.codio-box.uk",
+    "https://gammacairo-deltareward-3000.codio-box.uk",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    ctx.set("Access-Control-Allow-Origin", origin);
+  } else {
+    ctx.set(
+      "Access-Control-Allow-Origin",
+      "https://gammacairo-deltareward-3000.codio-box.uk"
+    );
+  }
+  ctx.set("Access-Control-Allow-Credentials", "true");
+};
+
 // Handle OPTIONS request for CORS preflight
 router.options("/", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -24,10 +40,7 @@ router.options("/", async (ctx) => {
 
 // Handle OPTIONS request for specific favourite ID
 router.options("/:property_id", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "DELETE, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -45,11 +58,7 @@ router.options("/:property_id", async (ctx) => {
 // POST: Favourite a property
 router.post("/", authMiddleware, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
   ctx.set(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Accept, Cache-Control"
@@ -118,11 +127,7 @@ router.post("/", authMiddleware, async (ctx) => {
 // GET: User's favourites
 router.get("/", authMiddleware, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
   ctx.set(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Accept, Cache-Control"
@@ -180,11 +185,7 @@ router.get("/", authMiddleware, async (ctx) => {
 // DELETE: Unfavourite a property
 router.delete("/:property_id", authMiddleware, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
-  ctx.set("Access-Control-Allow-Credentials", "true");
+  setCorsHeaders(ctx);
   ctx.set(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Accept, Cache-Control"

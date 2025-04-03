@@ -41,12 +41,28 @@ const optionalAuth = async (ctx, next) => {
   await next();
 };
 
+// Helper function to set CORS headers dynamically
+const setCorsHeaders = (ctx) => {
+  const origin = ctx.request.headers.origin;
+  const allowedOrigins = [
+    "https://gammacairo-deltareward-9000.codio-box.uk",
+    "https://gammacairo-deltareward-3000.codio-box.uk",
+  ];
+
+  if (allowedOrigins.includes(origin)) {
+    ctx.set("Access-Control-Allow-Origin", origin);
+  } else {
+    ctx.set(
+      "Access-Control-Allow-Origin",
+      "https://gammacairo-deltareward-3000.codio-box.uk"
+    );
+  }
+  ctx.set("Access-Control-Allow-Credentials", "true");
+};
+
 // Handle OPTIONS request for CORS preflight on collection routes
 router.options("/", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -63,10 +79,7 @@ router.options("/", async (ctx) => {
 
 // Handle OPTIONS request for CORS preflight on individual property routes
 router.options("/:id", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -83,10 +96,7 @@ router.options("/:id", async (ctx) => {
 
 // Handle OPTIONS request for CORS preflight on property filter routes
 router.options("/filter", async (ctx) => {
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Methods", "GET, OPTIONS");
   ctx.set(
     "Access-Control-Allow-Headers",
@@ -146,10 +156,7 @@ const validateSearchParams = async (ctx, next) => {
 // GET: All properties (Public access with enhanced authentication if token present)
 router.get("/", optionalAuth, validateSearchParams, async (ctx) => {
   // Set CORS headers for the response
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Credentials", "true");
   ctx.set("Access-Control-Expose-Headers", "Authorization, Link");
   ctx.set(
@@ -399,10 +406,7 @@ router.get("/", optionalAuth, validateSearchParams, async (ctx) => {
 // GET: Property by ID (Public)
 router.get("/:id", optionalAuth, async (ctx) => {
   // Set CORS headers for the response
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   console.log(`Property GET request received for ID: ${ctx.params.id}`);
@@ -520,10 +524,7 @@ router.get("/:id", optionalAuth, async (ctx) => {
 // POST: Create property (Agents only)
 router.post("/", authMiddleware, validateProperty, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
@@ -640,10 +641,7 @@ router.post("/", authMiddleware, validateProperty, async (ctx) => {
 // PUT: Update property (Agents only)
 router.put("/:id", authMiddleware, validatePropertyUpdate, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
@@ -880,10 +878,7 @@ router.delete("/:id", authMiddleware, async (ctx) => {
 // GET: Filter properties (Public access with optional auth)
 router.get("/filter", optionalAuth, validateSearchParams, async (ctx) => {
   // Set CORS headers
-  ctx.set(
-    "Access-Control-Allow-Origin",
-    "https://gammacairo-deltareward-9000.codio-box.uk"
-  );
+  setCorsHeaders(ctx);
   ctx.set("Access-Control-Allow-Credentials", "true");
 
   try {
