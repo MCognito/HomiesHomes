@@ -14,15 +14,10 @@
  
  // Use a separate port so it doesn't interfere with the main API
  const port = process.env.DOCS_PORT || 9030;
+ const host = process.env.DOCS_HOST || "http://localhost";
  
  app.listen(port);
- console.log(
-   `\n📚 Documentation server running at https://gammacairo-deltareward-3000.codio-box.uk:${port}`
- );
- console.log(
-   `📚 OpenAPI UI available at https://gammacairo-deltareward-3000.codio-box.uk:${port}`
- );
- console.log(
-   `📚 OpenAPI spec available at https://gammacairo-deltareward-3000.codio-box.uk:${port}/schemas/openapi.yaml\n`
- );
+ console.log(`\n📚 Documentation server running at ${host}:${port}`);
+ console.log(`📚 OpenAPI UI available at ${host}:${port}`);
+ console.log(`📚 OpenAPI spec available at ${host}:${port}/schemas/openapi.yaml\n`);
  

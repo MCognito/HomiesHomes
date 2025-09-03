@@ -2,10 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "../styles/AddProperty.css";
+import API_BASE_URL from "../config/api";
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+// Import default image to display in form
+import defaultImageSrc from "../assets/prop1.jpg";
 
-// Default image to use if none provided
+// Default image to use if none provided (just the filename)
 const DEFAULT_IMAGE = "prop1.jpg";
 
 // Property types allowed - match backend schema capitalization exactly
@@ -20,6 +22,29 @@ const PROPERTY_TYPES = [
   "Penthouse",
   "Terraced",
 ];
+
+// Helper function to get image preview source
+const getImagePreviewSource = (imagePath) => {
+  if (!imagePath) return defaultImageSrc;
+
+  // If it's a full URL
+  if (imagePath.startsWith("http")) {
+    return imagePath;
+  }
+
+  // If it's one of our default images
+  if (imagePath === "prop1.jpg") {
+    return defaultImageSrc;
+  }
+
+  // Try the assets path
+  try {
+    return `${API_BASE_URL}/images/${imagePath}`;
+  } catch (error) {
+    console.error("Error loading image:", error);
+    return defaultImageSrc;
+  }
+};
 
 const AddProperty = ({ token, userInfo, isEditing, onPropertyUpdate }) => {
   const navigate = useNavigate();
@@ -246,13 +271,15 @@ const AddProperty = ({ token, userInfo, isEditing, onPropertyUpdate }) => {
           if (!trimmed) {
             sanitized[key] = DEFAULT_IMAGE;
           } else {
-            // Check if it has a valid image extension
-            const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-            const hasValidExtension = validExtensions.some((ext) =>
-              trimmed.toLowerCase().endsWith(ext)
-            );
-
-            sanitized[key] = hasValidExtension ? trimmed : DEFAULT_IMAGE;
+            // If it's a full URL, use it directly
+            if (trimmed.startsWith("http")) {
+              sanitized[key] = trimmed;
+            } else {
+              // Otherwise, just use the filename
+              sanitized[key] = trimmed.includes("/")
+                ? trimmed.split("/").pop()
+                : trimmed;
+            }
           }
         } else if (key === "property_type") {
           // For property type, ensure it's one of the allowed values
@@ -578,6 +605,27 @@ const AddProperty = ({ token, userInfo, isEditing, onPropertyUpdate }) => {
           <div className="helper-text">
             Use 'prop1.jpg' if you don't have an image URL. Image must be in
             .jpg, .jpeg, .png, .gif, or .webp format.
+          </div>
+
+          {/* Add image preview */}
+          <div className="image-preview">
+            <p>Image Preview:</p>
+            <img
+              src={getImagePreviewSource(formData.image_url)}
+              alt="Property preview"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "200px",
+                marginTop: "10px",
+              }}
+              onError={(e) => {
+                console.error(
+                  "Error loading image preview:",
+                  formData.image_url
+                );
+                e.target.src = defaultImageSrc;
+              }}
+            />
           </div>
         </div>
 

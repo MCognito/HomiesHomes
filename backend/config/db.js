@@ -1,25 +1,20 @@
 const mysql = require("mysql2/promise");
 require("dotenv").config(); // Loads environment variables
-
-// Get database info from .env
-const DB_HOST = process.env.DB_HOST;
-const DB_USER = process.env.DB_USER;
-const DB_PASSWORD = process.env.DB_PASSWORD;
-const DB_NAME = process.env.DB_NAME;
+const { dbHost, dbUser, dbPassword, dbName } = require("./env");
 
 // Log the connection details (password stays hidden)
 console.log("🔍 Setting up MySQL Connection...");
-console.log("📌 DB_HOST:", DB_HOST);
-console.log("📌 DB_USER:", DB_USER);
-console.log("📌 DB_PASSWORD:", DB_PASSWORD ? "********" : "NOT SET");
-console.log("📌 DB_NAME:", DB_NAME);
+console.log("📌 DB_HOST:", dbHost);
+console.log("📌 DB_USER:", dbUser);
+console.log("📌 DB_PASSWORD:", dbPassword ? "********" : "NOT SET");
+console.log("📌 DB_NAME:", dbName);
 
 // Create a connection pool for better performance
 const pool = mysql.createPool({
-  host: DB_HOST,
-  user: DB_USER,
-  password: DB_PASSWORD,
-  database: DB_NAME,
+  host: dbHost,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
   waitForConnections: true,
   connectionLimit: 10, // Max 10 connections at once
   queueLimit: 0, // No limit on connection queue

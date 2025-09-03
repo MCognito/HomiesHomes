@@ -299,20 +299,25 @@ const Properties = ({ properties, token, userInfo, refreshProperties }) => {
   const propertiesToDisplay = filteredProperties;
 
   // Helper function to get the image source
-  const getImageSource = (imageName) => {
-    if (!imageName) return defaultImage;
+  const getImageSource = (imagePath) => {
+    // If no image path is provided, use default
+    if (!imagePath) return defaultImage;
 
-    if (imageMap[imageName]) {
-      return imageMap[imageName];
+    // If it's already a full URL
+    if (imagePath.startsWith("http")) {
+      return imagePath;
     }
 
-
-    try {
-      return require(`../assets/${imageName}`);
-    } catch (error) {
-      console.warn(`Image not found: ${imageName}`, error);
-      return defaultImage;
+    // Check if we have this image in our map (imported images)
+    if (imageMap[imagePath]) {
+      return imageMap[imagePath];
     }
+
+    // For images stored on the backend server
+    const serverPath = `${API_BASE_URL}/images/${imagePath}`;
+
+    // Return the server path
+    return serverPath;
   };
 
   // Add handler for HATEOAS links

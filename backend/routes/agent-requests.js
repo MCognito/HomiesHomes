@@ -16,20 +16,19 @@
  // Helper function to set CORS headers dynamically
  const setCorsHeaders = (ctx) => {
    const origin = ctx.request.headers.origin;
-   const allowedOrigins = [
-     "https://gammacairo-deltareward-9000.codio-box.uk",
-     "https://gammacairo-deltareward-3000.codio-box.uk",
-   ];
+   const { allowedOrigins } = require("../config/env");
+   const configuredOrigins = Array.isArray(allowedOrigins)
+     ? allowedOrigins
+     : String(allowedOrigins || "").split(",").filter(Boolean);
  
-   if (allowedOrigins.includes(origin)) {
+   if (
+     origin &&
+     (configuredOrigins.includes(origin) ||
+       /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))
+   ) {
      ctx.set("Access-Control-Allow-Origin", origin);
-   } else {
-     ctx.set(
-       "Access-Control-Allow-Origin",
-       "https://gammacairo-deltareward-3000.codio-box.uk"
-     );
+     ctx.set("Access-Control-Allow-Credentials", "true");
    }
-   ctx.set("Access-Control-Allow-Credentials", "true");
  };
  
  // Handle OPTIONS requests

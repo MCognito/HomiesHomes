@@ -4,7 +4,7 @@
  */
 
 // Set this to your backend server address
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+const API_BASE_URL = "http://localhost:9001";
 
 // All the API endpoints our app uses
 export const API_ENDPOINTS = {
@@ -24,5 +24,4 @@ export const API_ENDPOINTS = {
   agentRequest: `${API_BASE_URL}/agent-requests/status`, // Get user's request status
   agentRequests: `${API_BASE_URL}/agent-requests`, // Create/manage requests
 };
-
 export default API_BASE_URL;

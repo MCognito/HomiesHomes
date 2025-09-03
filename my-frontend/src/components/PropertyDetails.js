@@ -8,6 +8,7 @@ import {
   faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import "./PropertyDetails.css";
+import API_BASE_URL from "../config/api";
 
 /**
  * Property detail card with booking functionality
@@ -28,21 +29,18 @@ const PropertyDetails = ({ property, token, userData }) => {
       }
 
       // Send the booking request to the server
-      const res = await fetch(
-        "https://gammacairo-deltareward-3000.codio-box.uk/bookings",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            property_id: property.id,
-            scheduled_date: date,
-            scheduled_time: time,
-          }),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          property_id: property.id,
+          scheduled_date: date,
+          scheduled_time: time,
+        }),
+      });
 
       const data = await res.json();
       alert(data.message || "Booked!");

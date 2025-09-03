@@ -2,7 +2,7 @@ const Router = require("koa-router");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
-const { jwtSecret } = require("../config/env");
+const { jwtSecret, allowedOrigins } = require("../config/env");
 const { authMiddleware, requireRole } = require("../middlewares/auth");
 const { sanitizeString } = require("../controllers/validation");
 const {
@@ -22,23 +22,17 @@ if (!jwtSecret) {
   process.exit(1); // Stop execution if JWT_SECRET is missing
 }
 
-// Helper function to set CORS headers dynamically
+// Helper function to set CORS headers dynamically using env-configured origins
 const setCorsHeaders = (ctx) => {
   const origin = ctx.request.headers.origin;
-  const allowedOrigins = [
-    "https://gammacairo-deltareward-9000.codio-box.uk",
-    "https://gammacairo-deltareward-3000.codio-box.uk",
-  ];
+  const configuredOrigins = Array.isArray(allowedOrigins)
+    ? allowedOrigins
+    : String(allowedOrigins || "").split(",").filter(Boolean);
 
-  if (allowedOrigins.includes(origin)) {
+  if (origin && (configuredOrigins.includes(origin) || /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))) {
     ctx.set("Access-Control-Allow-Origin", origin);
-  } else {
-    ctx.set(
-      "Access-Control-Allow-Origin",
-      "https://gammacairo-deltareward-3000.codio-box.uk"
-    );
+    ctx.set("Access-Control-Allow-Credentials", "true");
   }
-  ctx.set("Access-Control-Allow-Credentials", "true");
 };
 
 // Handle OPTIONS request for CORS preflight for register

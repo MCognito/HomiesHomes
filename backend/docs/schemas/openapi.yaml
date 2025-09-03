@@ -9,7 +9,7 @@ info:
     name: Apache 2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
 servers:
-  - url: "https://gammacairo-deltareward-9001.codio-box.uk"
+  - url: "https://gammacairo-deltareward-9000.codio-box.uk"
     description: Codio API server
   - url: "https://gammacairo-deltareward-3000.codio-box.uk"
     description: Codio frontend server
@@ -45,18 +45,15 @@ components:
         status:
           type: integer
           example: 400
-        message:
+        error:
           type: string
           example: "Bad Request"
-        path:
+        message:
           type: string
-          example: "/api/users"
-        timestamp:
-          type: string
-          example: "2023-03-30T12:00:00Z"
+          example: "Validation failed"
 
 paths:
-  /users:
+  /register:
     post:
       tags:
         - Users
@@ -95,6 +92,10 @@ paths:
                 user_lastName:
                   type: string
                   example: Doe
+                user_levels:
+                  type: integer
+                  example: 0
+                  description: User level (0=regular user, 1=agent, 2=admin)
       responses:
         "201":
           description: User successfully created
@@ -103,28 +104,117 @@ paths:
               schema:
                 type: object
                 properties:
-                  id:
-                    type: integer
-                    example: 1
-                  username:
-                    type: string
-                    example: john_doe
                   message:
                     type: string
-                    example: "User created successfully"
-                  links:
+                    example: "User registered successfully"
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
                     type: object
                     properties:
-                      self:
+                      user_id:
+                        type: integer
+                        example: 1
+                      username:
                         type: string
-                        example: "/api/users/1"
+                        example: john_doe
+                      user_email:
+                        type: string
+                        example: john.doe@example.com
+                      user_firstName:
+                        type: string
+                        example: John
+                      user_lastName:
+                        type: string
+                        example: Doe
+                      user_levels:
+                        type: integer
+                        example: 0
         "400":
           description: Bad request - validation error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Username already exists"
 
+  /login:
+    post:
+      tags:
+        - Users
+      summary: User login
+      description: Authenticates a user and returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: john_doe
+                password:
+                  type: string
+                  format: password
+                  example: securePassword123
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    type: object
+                    properties:
+                      user_id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: john_doe
+                      user_email:
+                        type: string
+                        example: john.doe@example.com
+                      user_firstName:
+                        type: string
+                        example: John
+                      user_lastName:
+                        type: string
+                        example: Doe
+                      user_levels:
+                        type: integer
+                        example: 0
+                  message:
+                    type: string
+                    example: "Login successful"
+        "401":
+          description: Unauthorized - Invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid username or password"
+                  error:
+                    type: string
+                    example: "Authentication failed"
+
+  /users:
     get:
       tags:
         - Users
@@ -151,16 +241,18 @@ paths:
                     user_email:
                       type: string
                       example: john.doe@example.com
-                    user_role:
+                    user_firstName:
                       type: string
-                      enum: [user, agent, admin]
-                      example: user
-                    links:
-                      type: object
-                      properties:
-                        self:
-                          type: string
-                          example: "/api/users/1"
+                      example: John
+                    user_lastName:
+                      type: string
+                      example: Doe
+                    user_phone:
+                      type: string
+                      example: "1234567890"
+                    user_levels:
+                      type: integer
+                      example: 0
         "401":
           description: Unauthorized - Only admin users can list all accounts
           content:
@@ -210,82 +302,11 @@ paths:
                   user_phone:
                     type: string
                     example: "1234567890"
-                  user_role:
-                    type: string
-                    enum: [user, agent, admin]
-                    example: user
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/users/1"
+                  user_levels:
+                    type: integer
+                    example: 0
         "401":
           description: Unauthorized - Non-admin users can only view their own record
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    put:
-      tags:
-        - Users
-      summary: Update user
-      description: Updates a user's information.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                user_email:
-                  type: string
-                  format: email
-                  example: updated.email@example.com
-                user_phone:
-                  type: string
-                  example: "9876543210"
-                user_firstName:
-                  type: string
-                  example: Updated
-                user_lastName:
-                  type: string
-                  example: Name
-                password:
-                  type: string
-                  format: password
-                  example: newSecurePassword123
-      responses:
-        "200":
-          description: User successfully updated
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  user_id:
-                    type: integer
-                    example: 1
-                  message:
-                    type: string
-                    example: "User updated successfully"
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/users/1"
-        "401":
-          description: Unauthorized
           content:
             application/json:
               schema:
@@ -328,66 +349,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /users/login:
-    post:
-      tags:
-        - Users
-      summary: User login
-      description: Authenticates a user and returns a JWT token.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - username
-                - password
-              properties:
-                username:
-                  type: string
-                  example: john_doe
-                password:
-                  type: string
-                  format: password
-                  example: securePassword123
-      responses:
-        "200":
-          description: Successful login
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  user:
-                    type: object
-                    properties:
-                      user_id:
-                        type: integer
-                        example: 1
-                      username:
-                        type: string
-                        example: john_doe
-                      user_role:
-                        type: string
-                        enum: [user, agent, admin]
-                        example: user
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/users/1"
-        "401":
-          description: Unauthorized - Invalid credentials
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
   /properties:
     get:
       tags:
@@ -395,6 +356,31 @@ paths:
       summary: Get all properties
       description: Returns a list of all properties with optional filtering.
       parameters:
+        - in: query
+          name: location
+          schema:
+            type: string
+          description: Location filter
+        - in: query
+          name: minBedrooms
+          schema:
+            type: integer
+          description: Minimum number of bedrooms
+        - in: query
+          name: maxBedrooms
+          schema:
+            type: integer
+          description: Maximum number of bedrooms
+        - in: query
+          name: minBathrooms
+          schema:
+            type: integer
+          description: Minimum number of bathrooms
+        - in: query
+          name: maxBathrooms
+          schema:
+            type: integer
+          description: Maximum number of bathrooms
         - in: query
           name: minPrice
           schema:
@@ -406,20 +392,31 @@ paths:
             type: number
           description: Maximum price filter
         - in: query
-          name: bedrooms
-          schema:
-            type: integer
-          description: Number of bedrooms
-        - in: query
-          name: bathrooms
-          schema:
-            type: integer
-          description: Number of bathrooms
-        - in: query
-          name: propertyType
+          name: property_type
           schema:
             type: string
-          description: Type of property (apartment, house, etc.)
+          description: Type of property (Apartment, House, etc.)
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+          description: Field to sort by (price, bedrooms, bathrooms, etc.)
+        - in: query
+          name: sortOrder
+          schema:
+            type: string
+            enum: [ASC, DESC]
+          description: Sort order (ASC or DESC)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Maximum number of results to return
+        - in: query
+          name: agent_id
+          schema:
+            type: integer
+          description: Filter by agent ID
       responses:
         "200":
           description: List of properties
@@ -430,7 +427,7 @@ paths:
                 items:
                   type: object
                   properties:
-                    property_id:
+                    id:
                       type: integer
                       example: 1
                     title:
@@ -439,9 +436,9 @@ paths:
                     price:
                       type: number
                       example: 250000
-                    address:
+                    location:
                       type: string
-                      example: "123 Main St, City"
+                      example: "Birmingham, UK"
                     bedrooms:
                       type: integer
                       example: 2
@@ -450,19 +447,40 @@ paths:
                       example: 1
                     property_type:
                       type: string
-                      example: "apartment"
+                      example: "Apartment"
                     image_url:
                       type: string
-                      example: "/uploads/property1.jpg"
-                    links:
+                      example: "prop1.jpg"
+                    agent_id:
+                      type: integer
+                      example: 2
+                    agent_username:
+                      type: string
+                      example: "realtor_jack"
+                    agent_email:
+                      type: string
+                      example: "jack@example.com"
+                    agent_phone:
+                      type: string
+                      example: "07700900000"
+                    agent_firstName:
+                      type: string
+                      example: "Jack"
+                    agent_lastName:
+                      type: string
+                      example: "Smith"
+                    _links:
                       type: object
                       properties:
                         self:
-                          type: string
-                          example: "/api/properties/1"
-                        agent:
-                          type: string
-                          example: "/api/users/2"
+                          type: object
+                          properties:
+                            href:
+                              type: string
+                              example: "/properties/1"
+                            method:
+                              type: string
+                              example: "GET"
 
     post:
       tags:
@@ -479,22 +497,25 @@ paths:
               type: object
               required:
                 - title
+                - description
                 - price
-                - address
+                - location
                 - bedrooms
                 - bathrooms
                 - property_type
-                - description
               properties:
                 title:
                   type: string
                   example: "Modern Apartment Downtown"
+                description:
+                  type: string
+                  example: "Beautiful modern apartment in the heart of the city."
                 price:
                   type: number
                   example: 250000
-                address:
+                location:
                   type: string
-                  example: "123 Main St, City"
+                  example: "Birmingham, UK"
                 bedrooms:
                   type: integer
                   example: 2
@@ -503,16 +524,10 @@ paths:
                   example: 1
                 property_type:
                   type: string
-                  example: "apartment"
-                description:
+                  example: "Apartment"
+                image_url:
                   type: string
-                  example: "Beautiful modern apartment in the heart of the city."
-                square_feet:
-                  type: integer
-                  example: 1200
-                year_built:
-                  type: integer
-                  example: 2015
+                  example: "prop1.jpg"
       responses:
         "201":
           description: Property successfully created
@@ -521,18 +536,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  property_id:
-                    type: integer
-                    example: 1
                   message:
                     type: string
                     example: "Property created successfully"
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/properties/1"
+                  property_id:
+                    type: integer
+                    example: 1
         "401":
           description: Unauthorized - Must be agent or admin
           content:
@@ -568,54 +577,57 @@ paths:
               schema:
                 type: object
                 properties:
-                  property_id:
-                    type: integer
-                    example: 1
-                  title:
-                    type: string
-                    example: "Modern Apartment Downtown"
-                  price:
-                    type: number
-                    example: 250000
-                  address:
-                    type: string
-                    example: "123 Main St, City"
-                  bedrooms:
-                    type: integer
-                    example: 2
-                  bathrooms:
-                    type: integer
-                    example: 1
-                  property_type:
-                    type: string
-                    example: "apartment"
-                  description:
-                    type: string
-                    example: "Beautiful modern apartment in the heart of the city."
-                  square_feet:
-                    type: integer
-                    example: 1200
-                  year_built:
-                    type: integer
-                    example: 2015
-                  image_url:
-                    type: string
-                    example: "/uploads/property1.jpg"
-                  agent_id:
-                    type: integer
-                    example: 2
-                  links:
+                  data:
                     type: object
                     properties:
-                      self:
+                      id:
+                        type: integer
+                        example: 1
+                      title:
                         type: string
-                        example: "/api/properties/1"
+                        example: "Modern Apartment Downtown"
+                      description:
+                        type: string
+                        example: "Beautiful modern apartment in the heart of the city."
+                      price:
+                        type: number
+                        example: 250000
+                      location:
+                        type: string
+                        example: "Birmingham, UK"
+                      bedrooms:
+                        type: integer
+                        example: 2
+                      bathrooms:
+                        type: integer
+                        example: 1
+                      property_type:
+                        type: string
+                        example: "Apartment"
+                      image_url:
+                        type: string
+                        example: "prop1.jpg"
+                      agent_id:
+                        type: integer
+                        example: 2
                       agent:
-                        type: string
-                        example: "/api/users/2"
-                      bookings:
-                        type: string
-                        example: "/api/properties/1/bookings"
+                        type: object
+                        properties:
+                          _id:
+                            type: string
+                            example: "60d0fe4f5311236168a109ca"
+                          name:
+                            type: string
+                            example: "John Smith"
+                          phone:
+                            type: string
+                            example: "07700900000"
+                          avatar:
+                            type: string
+                            example: "avatar.jpg"
+                  success:
+                    type: boolean
+                    example: true
         "404":
           description: Not found
           content:
@@ -640,12 +652,15 @@ paths:
                 title:
                   type: string
                   example: "Updated Apartment Title"
+                description:
+                  type: string
+                  example: "Updated property description."
                 price:
                   type: number
                   example: 275000
-                address:
+                location:
                   type: string
-                  example: "Updated address"
+                  example: "Updated location"
                 bedrooms:
                   type: integer
                   example: 3
@@ -654,16 +669,10 @@ paths:
                   example: 2
                 property_type:
                   type: string
-                  example: "condo"
-                description:
+                  example: "Condo"
+                image_url:
                   type: string
-                  example: "Updated property description."
-                square_feet:
-                  type: integer
-                  example: 1300
-                year_built:
-                  type: integer
-                  example: 2016
+                  example: "prop2.jpg"
       responses:
         "200":
           description: Property successfully updated
@@ -672,18 +681,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  property_id:
-                    type: integer
-                    example: 1
                   message:
                     type: string
                     example: "Property updated successfully"
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/properties/1"
+                  property_id:
+                    type: integer
+                    example: 1
         "401":
           description: Unauthorized - Must be property owner or admin
           content:
@@ -733,53 +736,152 @@ paths:
       tags:
         - Bookings
       summary: Get user bookings
-      description: Returns a list of all bookings for the authenticated user.
+      description: Returns a list of all bookings for the authenticated user. Admins see all bookings, agents see bookings for their properties, and regular users see their own bookings.
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, attended]
+          description: Filter by booking status
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+          description: Filter by bookings after this date
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+          description: Filter by bookings before this date
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [date_asc, date_desc]
+          description: Sort by date ascending or descending
       responses:
         "200":
           description: List of bookings
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    booking_id:
-                      type: integer
-                      example: 1
-                    property_id:
-                      type: integer
-                      example: 1
-                    user_id:
-                      type: integer
-                      example: 3
-                    booking_date:
-                      type: string
-                      format: date
-                      example: "2023-04-15"
-                    booking_time:
-                      type: string
-                      example: "14:00"
-                    attended:
-                      type: boolean
-                      example: false
-                    notes:
-                      type: string
-                      example: "Interested in the kitchen space"
-                    links:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
                       type: object
                       properties:
-                        self:
+                        booking_id:
+                          type: integer
+                          example: 1
+                        property_id:
+                          type: integer
+                          example: 1
+                        user_id:
+                          type: integer
+                          example: 3
+                        agent_id:
+                          type: integer
+                          example: 2
+                        booking_status:
                           type: string
-                          example: "/api/bookings/1"
-                        property:
+                          enum: [pending, confirmed, cancelled, attended]
+                          example: "pending"
+                        scheduled_date:
                           type: string
-                          example: "/api/properties/1"
-                        user:
+                          format: date
+                          example: "2023-04-15"
+                        scheduled_time:
                           type: string
-                          example: "/api/users/3"
+                          example: "14:00"
+                        notes:
+                          type: string
+                          example: "Interested in the kitchen space"
+                        booking_created:
+                          type: string
+                          format: date-time
+                          example: "2023-04-01T10:30:00Z"
+                        property_title:
+                          type: string
+                          example: "Modern Apartment Downtown"
+                        property_location:
+                          type: string
+                          example: "Birmingham, UK"
+                        property_image:
+                          type: string
+                          example: "prop1.jpg"
+                        user_username:
+                          type: string
+                          example: "john_doe"
+                        user_firstName:
+                          type: string
+                          example: "John"
+                        user_lastName:
+                          type: string
+                          example: "Doe"
+                        user_email:
+                          type: string
+                          example: "john.doe@example.com"
+                        user_phone:
+                          type: string
+                          example: "1234567890"
+                        agent_username:
+                          type: string
+                          example: "agent_smith"
+                        agent_firstName:
+                          type: string
+                          example: "Agent"
+                        agent_lastName:
+                          type: string
+                          example: "Smith"
+                        agent_email:
+                          type: string
+                          example: "agent.smith@example.com"
+                        agent_phone:
+                          type: string
+                          example: "0987654321"
+                        _links:
+                          type: object
+                          properties:
+                            self:
+                              type: object
+                              properties:
+                                href:
+                                  type: string
+                                  example: "/bookings/1"
+                                method:
+                                  type: string
+                                  example: "GET"
+                  _links:
+                    type: object
+                    properties:
+                      self:
+                        type: object
+                        properties:
+                          href:
+                            type: string
+                            example: "/bookings"
+                          method:
+                            type: string
+                            example: "GET"
+                      create:
+                        type: object
+                        properties:
+                          href:
+                            type: string
+                            example: "/bookings"
+                          method:
+                            type: string
+                            example: "POST"
+                          description:
+                            type: string
+                            example: "Create a new booking"
         "401":
           description: Unauthorized
           content:
@@ -802,17 +904,17 @@ paths:
               type: object
               required:
                 - property_id
-                - booking_date
-                - booking_time
+                - scheduled_date
+                - scheduled_time
               properties:
                 property_id:
                   type: integer
                   example: 1
-                booking_date:
+                scheduled_date:
                   type: string
                   format: date
                   example: "2023-04-15"
-                booking_time:
+                scheduled_time:
                   type: string
                   example: "14:00"
                 notes:
@@ -826,21 +928,12 @@ paths:
               schema:
                 type: object
                 properties:
-                  booking_id:
-                    type: integer
-                    example: 1
                   message:
                     type: string
                     example: "Booking created successfully"
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/bookings/1"
-                      property:
-                        type: string
-                        example: "/api/properties/1"
+                  booking_id:
+                    type: integer
+                    example: 1
         "400":
           description: Bad request - validation error
           content:
@@ -867,7 +960,7 @@ paths:
       tags:
         - Bookings
       summary: Get booking by ID
-      description: Returns a booking by its ID.
+      description: Returns a booking by its ID. Users can only view their own bookings, agents can view bookings for their properties, and admins can view all bookings.
       security:
         - bearerAuth: []
       responses:
@@ -887,31 +980,81 @@ paths:
                   user_id:
                     type: integer
                     example: 3
-                  booking_date:
+                  agent_id:
+                    type: integer
+                    example: 2
+                  booking_status:
+                    type: string
+                    enum: [pending, confirmed, cancelled, attended]
+                    example: "pending"
+                  scheduled_date:
                     type: string
                     format: date
                     example: "2023-04-15"
-                  booking_time:
+                  scheduled_time:
                     type: string
                     example: "14:00"
-                  attended:
-                    type: boolean
-                    example: false
                   notes:
                     type: string
                     example: "Interested in the kitchen space"
-                  links:
+                  booking_created:
+                    type: string
+                    format: date-time
+                    example: "2023-04-01T10:30:00Z"
+                  property:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: "Modern Apartment Downtown"
+                      location:
+                        type: string
+                        example: "Birmingham, UK"
+                      image_url:
+                        type: string
+                        example: "prop1.jpg"
+                  user:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "john_doe"
+                      email:
+                        type: string
+                        example: "john.doe@example.com"
+                      name:
+                        type: string
+                        example: "John Doe"
+                      phone:
+                        type: string
+                        example: "1234567890"
+                  agent:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: "agent_smith"
+                      email:
+                        type: string
+                        example: "agent.smith@example.com"
+                      name:
+                        type: string
+                        example: "Agent Smith"
+                      phone:
+                        type: string
+                        example: "0987654321"
+                  _links:
                     type: object
                     properties:
                       self:
-                        type: string
-                        example: "/api/bookings/1"
-                      property:
-                        type: string
-                        example: "/api/properties/1"
-                      user:
-                        type: string
-                        example: "/api/users/3"
+                        type: object
+                        properties:
+                          href:
+                            type: string
+                            example: "/bookings/1"
+                          method:
+                            type: string
+                            example: "GET"
         "401":
           description: Unauthorized - Must be booking owner, property agent, or admin
           content:
@@ -925,11 +1068,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /bookings/{id}/status:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: Booking ID
+
     put:
       tags:
         - Bookings
-      summary: Update booking
-      description: Updates a booking (user can update their own, agent can mark as attended).
+      summary: Update booking status
+      description: Updates a booking's status. Users can cancel their own bookings, agents can update statuses for their properties, and admins can update all booking statuses.
       security:
         - bearerAuth: []
       requestBody:
@@ -938,73 +1090,32 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - status
               properties:
-                booking_date:
+                status:
                   type: string
-                  format: date
-                  example: "2023-04-20"
-                booking_time:
-                  type: string
-                  example: "15:30"
-                attended:
-                  type: boolean
-                  example: true
-                notes:
-                  type: string
-                  example: "Updated notes about the viewing"
+                  enum: [pending, confirmed, cancelled, attended]
+                  example: "confirmed"
       responses:
         "200":
-          description: Booking successfully updated
+          description: Booking status successfully updated
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  message:
+                    type: string
+                    example: "Booking status updated to confirmed"
                   booking_id:
                     type: integer
                     example: 1
-                  message:
+                  status:
                     type: string
-                    example: "Booking updated successfully"
-                  links:
-                    type: object
-                    properties:
-                      self:
-                        type: string
-                        example: "/api/bookings/1"
+                    example: "confirmed"
         "401":
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    delete:
-      tags:
-        - Bookings
-      summary: Delete booking
-      description: Deletes a booking (owner or admin only).
-      security:
-        - bearerAuth: []
-      responses:
-        "200":
-          description: Booking successfully deleted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Booking deleted successfully"
-        "401":
-          description: Unauthorized - Must be booking owner or admin
           content:
             application/json:
               schema:
@@ -1034,42 +1145,43 @@ paths:
                 items:
                   type: object
                   properties:
-                    favourite_id:
-                      type: integer
-                      example: 1
                     property_id:
                       type: integer
                       example: 1
                     user_id:
                       type: integer
                       example: 3
-                    property:
-                      type: object
-                      properties:
-                        property_id:
-                          type: integer
-                          example: 1
-                        title:
-                          type: string
-                          example: "Modern Apartment Downtown"
-                        price:
-                          type: number
-                          example: 250000
-                        address:
-                          type: string
-                          example: "123 Main St, City"
-                        image_url:
-                          type: string
-                          example: "/uploads/property1.jpg"
-                    links:
-                      type: object
-                      properties:
-                        self:
-                          type: string
-                          example: "/api/favourites/1"
-                        property:
-                          type: string
-                          example: "/api/properties/1"
+                    favourite_date:
+                      type: string
+                      format: date-time
+                      example: "2023-04-01T10:30:00Z"
+                    title:
+                      type: string
+                      example: "Modern Apartment Downtown"
+                    price:
+                      type: number
+                      example: 250000
+                    location:
+                      type: string
+                      example: "Birmingham, UK"
+                    description:
+                      type: string
+                      example: "Beautiful modern apartment in the heart of the city."
+                    property_type:
+                      type: string
+                      example: "Apartment"
+                    bedrooms:
+                      type: integer
+                      example: 2
+                    bathrooms:
+                      type: integer
+                      example: 1
+                    image_url:
+                      type: string
+                      example: "prop1.jpg"
+                    agent_id:
+                      type: integer
+                      example: 2
         "401":
           description: Unauthorized
           content:
@@ -1104,27 +1216,28 @@ paths:
               schema:
                 type: object
                 properties:
-                  favourite_id:
-                    type: integer
-                    example: 1
                   message:
                     type: string
                     example: "Property added to favourites"
-                  links:
+                  favorite:
                     type: object
                     properties:
-                      self:
-                        type: string
-                        example: "/api/favourites/1"
-                      property:
-                        type: string
-                        example: "/api/properties/1"
+                      user_id:
+                        type: integer
+                        example: 3
+                      property_id:
+                        type: integer
+                        example: 1
         "400":
           description: Bad request - property already in favourites
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Property already in favourites"
         "401":
           description: Unauthorized
           content:
@@ -1136,16 +1249,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Property not found"
 
-  /favourites/{id}:
+  /favourites/{property_id}:
     parameters:
       - in: path
-        name: id
+        name: property_id
         schema:
           type: integer
         required: true
-        description: Favourite ID
+        description: Property ID to remove from favourites
 
     delete:
       tags:
@@ -1166,7 +1283,7 @@ paths:
                     type: string
                     example: "Property removed from favourites"
         "401":
-          description: Unauthorized - Must be favourite owner
+          description: Unauthorized
           content:
             application/json:
               schema:
@@ -1176,7 +1293,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Favourite not found"
 
   /agent-requests:
     get:
@@ -1217,6 +1338,18 @@ paths:
                     request_reason:
                       type: string
                       example: "I'm a professional real estate agent with 5 years of experience."
+                    username:
+                      type: string
+                      example: "john_doe"
+                    user_email:
+                      type: string
+                      example: "john.doe@example.com"
+                    user_firstName:
+                      type: string
+                      example: "John"
+                    user_lastName:
+                      type: string
+                      example: "Doe"
         "401":
           description: Unauthorized - Only admin users can list all agent requests
           content:
@@ -1251,91 +1384,39 @@ paths:
               schema:
                 type: object
                 properties:
-                  request_id:
-                    type: integer
-                    example: 1
-                  user_id:
-                    type: integer
-                    example: 2
-                  status:
-                    type: string
-                    enum: [pending, approved, rejected]
-                    example: "pending"
                   message:
                     type: string
-                    example: "Agent request created successfully"
+                    example: "Agent request submitted successfully"
+                  request:
+                    type: object
+                    properties:
+                      request_id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 2
+                      status:
+                        type: string
+                        enum: [pending, approved, rejected]
+                        example: "pending"
+                      request_reason:
+                        type: string
+                        example: "I'm a professional real estate agent with 5 years of experience."
+                      request_date:
+                        type: string
+                        format: date-time
+                        example: "2023-03-30T12:00:00Z"
         "400":
-          description: Bad request - validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /agent-requests/{id}/status:
-    parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-        description: Agent request ID
-
-    put:
-      tags:
-        - Agent Requests
-      summary: Update agent request status
-      description: Updates the status of an agent request (admin only).
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - status
-              properties:
-                status:
-                  type: string
-                  enum: [approved, rejected]
-                  example: "approved"
-      responses:
-        "200":
-          description: Agent request status updated
+          description: Bad request - validation error or user already has a pending request
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  request_id:
-                    type: integer
-                    example: 1
-                  status:
+                  error:
                     type: string
-                    enum: [pending, approved, rejected]
-                    example: "approved"
-                  message:
-                    type: string
-                    example: "Agent request status updated successfully"
-        "400":
-          description: Bad request - validation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "401":
-          description: Unauthorized - Only admin users can update agent request status
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "404":
-          description: Agent request not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+                    example: "You already have a pending agent request"
 
   /agent-requests/status:
     get:
@@ -1356,6 +1437,9 @@ paths:
                   request_id:
                     type: integer
                     example: 1
+                  user_id:
+                    type: integer
+                    example: 2
                   status:
                     type: string
                     enum: [pending, approved, rejected]
@@ -1376,4 +1460,82 @@ paths:
           content:
             application/json:
               schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "No agent request found"
+
+  /agent-requests/{id}/respond:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: Agent request ID
+
+    put:
+      tags:
+        - Agent Requests
+      summary: Respond to agent request
+      description: Updates the status of an agent request and optionally promotes the user to agent (admin only).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                  example: "approved"
+                response_text:
+                  type: string
+                  example: "Approved based on your experience."
+      responses:
+        "200":
+          description: Agent request status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Agent request updated successfully"
+                  status:
+                    type: string
+                    enum: [pending, approved, rejected]
+                    example: "approved"
+        "400":
+          description: Bad request - invalid status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid status provided"
+        "401":
+          description: Unauthorized - Only admin users can update agent request status
+          content:
+            application/json:
+              schema:
                 $ref: "#/components/schemas/Error"
+        "404":
+          description: Agent request not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Agent request not found"

@@ -24,7 +24,16 @@ import {
   faPhone,
 } from "@fortawesome/free-solid-svg-icons";
 
-const API_BASE_URL = "https://gammacairo-deltareward-9000.codio-box.uk";
+import API_BASE_URL from "../config/api";
+
+// Import the default image
+import defaultImage from "../assets/prop1.jpg";
+import prop1 from "../assets/prop1.jpg";
+
+// Image map for imported images
+const imageMap = {
+  "prop1.jpg": prop1,
+};
 
 const AgentDashboard = ({ token, userInfo }) => {
   const [properties, setProperties] = useState([]);
@@ -351,22 +360,26 @@ const AgentDashboard = ({ token, userInfo }) => {
   // Get filtered bookings based on current view mode
   const filteredBookings = getFilteredBookings();
 
-  // Helper function to get image source
+  // Helper function to get the correct image path
   const getImageSource = (imagePath) => {
-    try {
-      if (!imagePath) {
-        return require("../assets/prop1.jpg");
-      }
+    // If no image path is provided, use default
+    if (!imagePath) return defaultImage;
 
-      if (imagePath.startsWith("http")) {
-        return imagePath;
-      }
-
-      return require(`../assets/${imagePath}`);
-    } catch (error) {
-      console.warn(`Image not found: ${imagePath}`, error);
-      return require("../assets/prop1.jpg");
+    // If it's already a full URL
+    if (imagePath.startsWith("http")) {
+      return imagePath;
     }
+
+    // Check if we have this image in our map (imported images)
+    if (imageMap[imagePath]) {
+      return imageMap[imagePath];
+    }
+
+    // For images stored on the backend server
+    const serverPath = `${API_BASE_URL}/images/${imagePath}`;
+
+    // Return the server path
+    return serverPath;
   };
 
   const handleRemoveFavorite = async (propertyId) => {
@@ -492,13 +505,16 @@ const AgentDashboard = ({ token, userInfo }) => {
                       <tr key={property.id}>
                         <td className="property-image-cell">
                           <img
-                            src={
-                              property.image_url
-                                ? require(`../assets/${property.image_url}`)
-                                : require("../assets/prop1.jpg")
-                            }
+                            src={getImageSource(property.image_url)}
                             alt={property.title}
                             className="property-thumbnail"
+                            onError={(e) => {
+                              console.warn(
+                                "Image failed to load:",
+                                property.image_url
+                              );
+                              e.target.src = defaultImage;
+                            }}
                           />
                         </td>
                         <td>{property.title}</td>
@@ -551,12 +567,15 @@ const AgentDashboard = ({ token, userInfo }) => {
                     <div className="property-card" key={property.id}>
                       <div className="property-card-image">
                         <img
-                          src={
-                            property.image_url
-                              ? require(`../assets/${property.image_url}`)
-                              : require("../assets/prop1.jpg")
-                          }
+                          src={getImageSource(property.image_url)}
                           alt={property.title}
+                          onError={(e) => {
+                            console.warn(
+                              "Image failed to load:",
+                              property.image_url
+                            );
+                            e.target.src = defaultImage;
+                          }}
                         />
                       </div>
                       <div className="property-card-content">
@@ -854,6 +873,10 @@ const AgentDashboard = ({ token, userInfo }) => {
                     src={getImageSource(favorite.image_url)}
                     alt={favorite.title}
                     className="favorite-image"
+                    onError={(e) => {
+                      console.warn("Image failed to load:", favorite.image_url);
+                      e.target.src = defaultImage;
+                    }}
                   />
                   <div className="favorite-content">
                     <h3 className="favorite-title">{favorite.title}</h3>
