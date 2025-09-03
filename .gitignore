@@ -1,3 +1,12 @@
 node_modules/
+**/.env
 .env
+.env.local
+.env.*.local
 config.js
+
+# Ignore environment files
+.env
+.env.*
+backend/.env
+backend/.env.*
