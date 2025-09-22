@@ -10,3 +10,7 @@ config.js
 .env.*
 backend/.env
 backend/.env.*
+
+.cache_ggshield
+*.cache_ggshield
+*.cache_ggshield*
